@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>TapTest 3.0</title>
+<script src="./pdf.js"></script> 
+<script src="./envelopes.js"></script>
+<style>
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 140%;
+    font-size: 10pt;
+  }
+#the-canvas {
+  border: 1px solid black;
+  direction: ltr;
+}
+div {
+  position: absolute;
+}
+p {     
+  margin: 0 0 0.5em 0;
+}
+</style>
+</head>
+<body>
+<div id="panel" style="overflow:hidden; white-space:nowrap; text-overflow: ellipsis; width:200px; user-select:none;">
+<!--  <input type="file" accept=".pdf" onchange="openPDF(this.files[0]);"><br/> -->
+  <p><button onclick="let input = document.createElement('input');
+    input.type = 'file'; input.accept = '.pdf';
+    input.onchange = _ => {
+      const filename_text = document.getElementById('fname');
+      filename_text.innerHTML = 'File: ' + input.files[0].name;
+      openPDF(input.files[0]);
+    };
+    input.click();">Open PDF</button></p>
+  <span id="controls" style="display:none;">
+    <p><span id="fname" ></span></br/>
+    Size: <span id="page_width"></span>" X <span id="page_height"></span>"</p>
+    <p><button id="button_prev" onclick="pageNum--;
+      queueRenderPage(pageNum);">
+      Previous</button>
+    <button id="button_next" onclick="pageNum++;
+      queueRenderPage(pageNum);">
+      Next</button> &nbsp;
+    Page <span id="page_num"></span> of <span id="page_count"></span></p>
+    <p style="margin-top:1em;"><label for="envelope">Envelope:</label>
+      <select name="envelope" id="envelope-list" onchange="showEnvelope(this.selectedIndex);"></select>
+    </p>
+    <div style="position:relative; height:50px;">    </div>
+    <p><button id="tap-left" disabled onclick="tap(true)">Tap Left</button><button id="tap-right" disabled onclick="tap(false)">Tap Right</button></p>
+    <p>
+      <input type="checkbox" onchange="showRuler()"> Ruler<br/>
+      <input type="checkbox" disabled id="show-ab" onchange="showTolerance()"> Address window tolerance<br/>
+      <input type="checkbox" onchange="showOMR()"> OMR codes
+    </p>
+
+  </span>
+</div>
+<div id="page" style="display:none;transform-origin:top left;">
+  <canvas id="the-canvas"></canvas>
+</div>
+<div id="envelope" style="transform-origin:top left;">
+  <svg id="envelope_svg">
+    <path id="envelope_path" stroke='red' fill='none' d='M0 0'/>
+    <path id="tolerance_path" stroke='red' stroke-dasharray='7,7' fill='none'/>
+  </svg>
+</div>
+<div id="page_tools_layer" style="transform-origin:top left;">
+</div>
+
+<script>
+  const PANEL_WIDTH = 285;
+  const PADDING = 15;
+  var pageWidthIn, pageHeightIn, scale;
+
+
+
+  const ePanel = document.getElementById("panel");
+  const ePage = document.getElementById("page");
+  const eEnvelope = document.getElementById("envelope");
+  const eEnvelopeSvg = document.getElementById("envelope_svg");
+  const eEnvelopePath = document.getElementById("envelope_path");
+  const ePageToolsLayer = document.getElementById("page_tools_layer");
+  const eControls = document.getElementById("controls");
+  const eButtonPrev = document.getElementById("button_prev");
+  const eButtonNext = document.getElementById("button_next");
+  const ePageWidth = document.getElementById("page_width");
+  const ePageHeight = document.getElementById("page_height");
+  const eEnvelopeList = document.getElementById("envelope-list");
+
+  ePanel.style.width = PANEL_WIDTH + 'px';
+  ePanel.style.left = PADDING + 'px';
+  ePanel.style.top = PADDING + 'px';
+  ePanel.style.overflow = 'scroll';
+  const SCROLL_WIDTH = ePanel.offsetWidth - ePanel.clientWidth + 3;
+  ePanel.style.overflow = 'hidden';
+  const WORK_OFFSET = PANEL_WIDTH + 2*PADDING;
+  const WORK_WIDTH = window.innerWidth - WORK_OFFSET - SCROLL_WIDTH - PADDING;
+  console.log(window.innerWidth);
+  console.log(WORK_OFFSET);
+  console.log(SCROLL_WIDTH);
+  console.log(WORK_WIDTH);
+  ePage.style.left = WORK_OFFSET + 'px';
+  ePage.style.top = PADDING + 'px';
+  eEnvelope.style.left = WORK_OFFSET + 'px';
+  eEnvelope.style.top = PADDING + 'px';
+  eEnvelopeSvg.style.width = WORK_WIDTH + 1 + 'px';
+
+  // ------- envelopes ------
+  eEnvelopeList.innerHTML += "<option> </option>";
+  for (let i = 0; i < envelopes.length; i ++) {
+    eEnvelopeList.innerHTML += "<option>" + envelopes[i][0] + " </option>";
+  }
+
+  function showEnvelope(e) {
+    if (e == 0) {
+      eEnvelopePath.setAttribute('d', "M0 0");
+      ePage.style.transform = 'scale(1)';
+      ePage.style.left = WORK_OFFSET + 'px';
+      ePage.style.top = PADDING + 'px';
+      ePageToolsLayer.style.transform = 'scale(1)';
+      ePageToolsLayer.style.left = WORK_OFFSET + 'px';
+      ePageToolsLayer.style.top = PADDING + 'px';
+      eFoldlines.innerHTML = "";
+      eTolerances.innerHTML = "";
+      eShowTolerances.disabled = true;
+      eShowTolerances.checked = false;
+      pxPerIn = WORK_WIDTH / pageWidthIn;
+    }
+    else {
+      edata = envelopes[e-1];
+      if (edata[1] < pageWidthIn) alert('The envelope is more narrow than the page - check the data!');
+      fold = 1; while (edata[2] < pageHeightIn/fold) fold++;
+      pxPerIn = WORK_WIDTH/edata[1];
+
+      let v = Math.round(edata[2]*pxPerIn) + 1;
+      eEnvelopeSvg.style.height = v + 'px';
+      ePage.style.transform = ePageToolsLayer.style.transform = 'scale(' + pageWidthIn/edata[1] + ')';
+      ePage.style.top = ePageToolsLayer.style.top = PADDING + (edata[2] - pageHeightIn/fold - inset)*pxPerIn + 'px';
+      console.log(eEnvelopePath);
+      console.log(eEnvelopePath.getAttribute('d'));
+
+      eEnvelopePath.setAttribute('d', "M0 0 v" + v + " h" + WORK_WIDTH + " v-" + v + " h-" + WORK_WIDTH);
+
+      pdfCanvas.style.width = PAPER_WIDTH*inch2px + 'px';
+      let topTap = ((edata[2] - PAPER_HEIGHT/fold)*inch2px - inset*inch2px) + 'px';
+      pdfHolder.style.marginTop = topTap;
+
+      let fold_code = "";
+      if (fold > 1) {
+          fold_code = "<path fill='transparent' stroke-dasharray='5,5' stroke='magenta' d='";
+          for (let i = 1; i < fold; i++) {
+              fold_code += " M1 " + page_height*i/fold + " h" + (LEFT_PANEL_WIDTH - 2);
+          }
+          fold_code +=  "'/>";
+      }
+      foldlines.innerHTML = fold_code;
+      show_ab.disabled = false;
+
+      leftTap = inset*inch2px + "px";
+      rightTap = (edata[1] - PAPER_WIDTH - inset)*inch2px + "px";
+      left = false;
+      tap(true);
+      showAB();
+    }
+    for (let i = 0; i < mRulerY.length; i ++) mRulerY[i].style.width = PAPER_WIDTH*inch2px + 'px';
+    for (let i = 0; i < mRulerX.length; i ++) mRulerX[i].style.height = PAPER_HEIGHT*inch2px + 'px';
+}
+
+
+
+
+
+
+  // ------ pdf render ------
+  var pdfjsLib = window['pdfjs-dist/build/pdf'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.js';
+  var pdfDoc = null,
+    pageNum = 1,
+    pageRendering = false,
+    pageNumPending = null,
+  //  scale = 10,
+    canvas = document.getElementById('the-canvas'),
+    ctx = canvas.getContext('2d');
+
+  /**
+   * Get page info from document, resize canvas accordingly, and render page.
+   * @param num Page number.
+   */
+  function renderPage(num) {
+    eButtonPrev.disabled = (num > 1) ? false : true;
+    eButtonNext.disabled = (num < pdfDoc.numPages) ? false : true;
+    
+    pageRendering = true;
+
+  // Using promise to fetch the page
+    pdfDoc.getPage(num).then(function(page) {
+      var viewport = page.getViewport({scale: 1});
+      pageWidthIn = viewport.width/72;
+      pageHeightIn = viewport.height/72;
+      ePageWidth.innerHTML = pageWidthIn;
+      ePageHeight.innerHTML = pageHeightIn;
+      scale = WORK_WIDTH / viewport.width;
+      viewport = page.getViewport({scale: scale});
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      // Render PDF page into canvas context
+      var renderContext = {
+        canvasContext: ctx,
+        viewport: viewport
+      };
+      var renderTask = page.render(renderContext);
+
+      // Wait for rendering to finish
+      renderTask.promise.then(function() {
+        pageRendering = false;
+        if (pageNumPending !== null) {
+          // New page rendering is pending
+          renderPage(pageNumPending);
+          pageNumPending = null;
+        }
+      });
+    });
+
+  // Update page counters
+  document.getElementById('page_num').textContent = num;
+  }
+
+  /**
+   * If another page rendering in progress, waits until the rendering is
+   * finised. Otherwise, executes rendering immediately.
+   */
+  function queueRenderPage(num) {
+    if (pageRendering) {
+      pageNumPending = num;
+    } else {
+      renderPage(num);
+    }
+  }
+
+   /**
+   * Asynchronously downloads PDF file
+   */
+  function openPDF(f) {
+    pageNum = 1;
+
+    pdfjsLib.getDocument(URL.createObjectURL(f)).promise.then(function(pdfDoc_) {
+      pdfDoc = pdfDoc_;
+      document.getElementById('page_count').textContent = pdfDoc.numPages;
+
+      // Initial/first page rendering
+      renderPage(pageNum);
+
+      ePage.style.display = 'block';
+      eControls.style.display = 'block';
+    });
+  }
+
+</script>
+
+</body>
+</html>
