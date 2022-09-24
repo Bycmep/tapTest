@@ -17,10 +17,16 @@
 }
 div {
   position: absolute;
+  transform-origin:top left;
 }
 p {     
   margin: 0 0 0.5em 0;
 }
+text {
+        font-family: Courier, monospace;
+        font-size: 20px;
+        user-select: none;
+    }
 </style>
 </head>
 <body>
@@ -45,49 +51,65 @@ p {
       Next</button> &nbsp;
     Page <span id="page_num"></span> of <span id="page_count"></span></p>
     <p style="margin-top:1em;"><label for="envelope">Envelope:</label>
-      <select name="envelope" id="envelope-list" onchange="showEnvelope(this.selectedIndex);"></select>
+      <select name="envelope" id="envelope_list" onchange="showEnvelope(this.selectedIndex);"></select>
     </p>
-    <div style="position:relative; height:50px;">    </div>
-    <p><button id="tap-left" disabled onclick="tap(true)">Tap Left</button><button id="tap-right" disabled onclick="tap(false)">Tap Right</button></p>
+    <div style="position:relative; height:50px;"><p id="envelope_desc" style="font-size:8pt; white-space:normal; overflow:visible;"></p></div>
+    <p><button id="tap_left" disabled onclick="tap(true)">Tap Left</button><button id="tap_right" disabled onclick="tap(false)">Tap Right</button></p>
     <p>
-      <input type="checkbox" onchange="showRuler()"> Ruler<br/>
-      <input type="checkbox" disabled id="show-ab" onchange="showTolerance()"> Address window tolerance<br/>
+      <input type="checkbox" onchange="rulerOn = !rulerOn; showRuler()"> Ruler<br/>
+      <input type="checkbox" disabled id="show_tolerance" onchange="showTolerance()"> Address window tolerance<br/>
       <input type="checkbox" onchange="showOMR()"> OMR codes
     </p>
 
   </span>
 </div>
-<div id="page" style="display:none;transform-origin:top left;">
+<div id="page" style="display:none;">
   <canvas id="the-canvas"></canvas>
+  <svg id="page_svg" style="position:absolute;top:0px;left:0px;">
+    <path id='fold-lines' fill='none' stroke-dasharray='5,5' stroke='magenta'/>
+  </svg>
 </div>
-<div id="envelope" style="transform-origin:top left;">
+<div id="envelope">
   <svg id="envelope_svg">
-    <path id="envelope_path" stroke='red' fill='none' d='M0 0'/>
+    <path id="envelope_path" stroke='red' fill='none'/>
     <path id="tolerance_path" stroke='red' stroke-dasharray='7,7' fill='none'/>
   </svg>
 </div>
-<div id="page_tools_layer" style="transform-origin:top left;">
+<div id="page_tools_layer">
+  <div id="ruler">
+  </div>
+  <div id="omr">
+  </div>
 </div>
 
 <script>
   const PANEL_WIDTH = 285;
   const PADDING = 15;
-  var pageWidthIn, pageHeightIn, scale;
+  const ROUNDQ = 0.55;
+  var pageWidthIn, pageHeightIn, scale, pxPerInPaper, tapState, envelopeWidthIn;
+  var rulerOn = false;
 
 
 
   const ePanel = document.getElementById("panel");
   const ePage = document.getElementById("page");
+  const ePageSvg = document.getElementById("page_svg");
   const eEnvelope = document.getElementById("envelope");
   const eEnvelopeSvg = document.getElementById("envelope_svg");
   const eEnvelopePath = document.getElementById("envelope_path");
+  const eFoldlinesPath = document.getElementById("fold-lines");
   const ePageToolsLayer = document.getElementById("page_tools_layer");
+  const eRuler = document.getElementById("ruler");
   const eControls = document.getElementById("controls");
   const eButtonPrev = document.getElementById("button_prev");
   const eButtonNext = document.getElementById("button_next");
+  const eTapLeft = document.getElementById("tap_left");
+  const eTapRight = document.getElementById("tap_right");
   const ePageWidth = document.getElementById("page_width");
   const ePageHeight = document.getElementById("page_height");
-  const eEnvelopeList = document.getElementById("envelope-list");
+  const eEnvelopeList = document.getElementById("envelope_list");
+  const eEnvelopeDesc = document.getElementById("envelope_desc");
+  const eShowTolerance = document.getElementById("show_tolerance");
 
   ePanel.style.width = PANEL_WIDTH + 'px';
   ePanel.style.left = PADDING + 'px';
@@ -97,15 +119,11 @@ p {
   ePanel.style.overflow = 'hidden';
   const WORK_OFFSET = PANEL_WIDTH + 2*PADDING;
   const WORK_WIDTH = window.innerWidth - WORK_OFFSET - SCROLL_WIDTH - PADDING;
-  console.log(window.innerWidth);
-  console.log(WORK_OFFSET);
-  console.log(SCROLL_WIDTH);
-  console.log(WORK_WIDTH);
-  ePage.style.left = WORK_OFFSET + 'px';
-  ePage.style.top = PADDING + 'px';
+  ePage.style.left = ePageToolsLayer.style.left = WORK_OFFSET + 'px';
+  ePage.style.top = ePageToolsLayer.style.top = PADDING + 'px';
   eEnvelope.style.left = WORK_OFFSET + 'px';
   eEnvelope.style.top = PADDING + 'px';
-  eEnvelopeSvg.style.width = WORK_WIDTH + 1 + 'px';
+  ePageSvg.style.width = eEnvelopeSvg.style.width = WORK_WIDTH + 1 + 'px';
 
   // ------- envelopes ------
   eEnvelopeList.innerHTML += "<option> </option>";
@@ -126,50 +144,104 @@ p {
       eTolerances.innerHTML = "";
       eShowTolerances.disabled = true;
       eShowTolerances.checked = false;
-      pxPerIn = WORK_WIDTH / pageWidthIn;
+      eTapLeft.disabled = eTapRight.disabled = true;
+      ePage.style.marginLeft = ePageToolsLayer.style.marginLeft = '0';
     }
     else {
       edata = envelopes[e-1];
       if (edata[1] < pageWidthIn) alert('The envelope is more narrow than the page - check the data!');
       fold = 1; while (edata[2] < pageHeightIn/fold) fold++;
-      pxPerIn = WORK_WIDTH/edata[1];
+      envelopeWidthIn = edata[1];
+      pxPerIn = WORK_WIDTH/envelopeWidthIn;
 
-      let v = Math.round(edata[2]*pxPerIn) + 1;
+      let v = edata[2]*pxPerIn;
       eEnvelopeSvg.style.height = v + 'px';
       ePage.style.transform = ePageToolsLayer.style.transform = 'scale(' + pageWidthIn/edata[1] + ')';
       ePage.style.top = ePageToolsLayer.style.top = PADDING + (edata[2] - pageHeightIn/fold - inset)*pxPerIn + 'px';
       console.log(eEnvelopePath);
       console.log(eEnvelopePath.getAttribute('d'));
+      let x1 = edata[3]*pxPerIn, y1 = edata[4]*pxPerIn, dx1 = edata[5]*pxPerIn, dy1 = edata[6]*pxPerIn, r1 = edata[7]*pxPerIn, rc1 = r1*ROUNDQ;
+      let x2 = edata[8]*pxPerIn, y2 = edata[9]*pxPerIn, dx2 = edata[10]*pxPerIn, dy2 = edata[11]*pxPerIn, r2 = edata[12]*pxPerIn, rc2 = r2*ROUNDQ;
+      eEnvelopeDesc.innerHTML = edata[13];
 
-      eEnvelopePath.setAttribute('d', "M0 0 v" + v + " h" + WORK_WIDTH + " v-" + v + " h-" + WORK_WIDTH);
+      path = 'M0 0 v' + v + ' h' + WORK_WIDTH + ' v-' + v + ' h-' + WORK_WIDTH +
+        ' M' + (x1 + r1) + ' ' + y1 + ' h' + (dx1 - 2*r1) + ' c' + rc1 + ' 0,' + r1 + ' ' + (r1 - rc1) + ',' + r1 + ' ' + r1 +
+          ' v' + (dy1 - 2*r1) + ' c0 ' + rc1 + ',-' + (r1 - rc1) + ' ' + r1 + ',-' + r1 + ' ' + r1 +
+          ' h-' + (dx1 - 2*r1) + ' c-' + rc1 + ' 0,-' + r1 + ' -' + (r1 - rc1) + ',-' + r1 + ' -' + r1 +
+          ' v-' + (dy1 - 2*r1) + ' c0 -' + rc1 + ',' + (r1 - rc1) + ' -' + r1 + ',' + r1 + ' -' + r1;
+      if (x2 != 0) path += ' M' + (x2 + r2) + ' ' + y2 + ' h' + (dx2 - 2*r2) + ' c' + rc2 + ' 0,' + r2 + ' ' + (r2 - rc2) + ',' + r2 + ' ' + r2 +
+          ' v' + (dy2 - 2*r2) + ' c0 ' + rc2 + ',-' + (r2 - rc2) + ' ' + r2 + ',-' + r2 + ' ' + r2 +
+          ' h-' + (dx2 - 2*r2) + ' c-' + rc2 + ' 0,-' + r2 + ' -' + (r2 - rc2) + ',-' + r2 + ' -' + r2 +
+          ' v-' + (dy2 - 2*r2) + ' c0 -' + rc2 + ',' + (r2 - rc2) + ' -' + r2 + ',' + r2 + ' -' + r2;
+      eEnvelopePath.setAttribute('d', path);
 
-      pdfCanvas.style.width = PAPER_WIDTH*inch2px + 'px';
-      let topTap = ((edata[2] - PAPER_HEIGHT/fold)*inch2px - inset*inch2px) + 'px';
-      pdfHolder.style.marginTop = topTap;
-
-      let fold_code = "";
-      if (fold > 1) {
-          fold_code = "<path fill='transparent' stroke-dasharray='5,5' stroke='magenta' d='";
-          for (let i = 1; i < fold; i++) {
-              fold_code += " M1 " + page_height*i/fold + " h" + (LEFT_PANEL_WIDTH - 2);
-          }
-          fold_code +=  "'/>";
+      path = 'M0 0 ';
+      for (let i = 1; i < fold; i++) {
+        path += " M2 " + pageHeightIn*i/fold*pxPerInPaper + " h" + (WORK_WIDTH - 4);
       }
-      foldlines.innerHTML = fold_code;
-      show_ab.disabled = false;
+      eFoldlinesPath.setAttribute('d', path);
+      eShowTolerance.disabled = false;
 
-      leftTap = inset*inch2px + "px";
-      rightTap = (edata[1] - PAPER_WIDTH - inset)*inch2px + "px";
-      left = false;
+      leftTap = inset*pxPerIn + "px";
+      rightTap = (edata[1] - pageWidthIn - inset)*pxPerIn + "px";
+      tapState = false;
       tap(true);
-      showAB();
+      showTolerance();
     }
-    for (let i = 0; i < mRulerY.length; i ++) mRulerY[i].style.width = PAPER_WIDTH*inch2px + 'px';
-    for (let i = 0; i < mRulerX.length; i ++) mRulerX[i].style.height = PAPER_HEIGHT*inch2px + 'px';
+}
+
+function tap(state) {
+    if (state == tapState) return;
+    tapState = state;
+    eTapLeft.disabled = state;
+    eTapRight.disabled = !state;
+    if (state) { // true = left
+      ePage.style.marginLeft = ePageToolsLayer.style.marginLeft = inset*pxPerIn - 1 + "px";
+    }
+    else {
+      ePage.style.marginLeft = ePageToolsLayer.style.marginLeft = (envelopeWidthIn - pageWidthIn - inset)*pxPerIn - 1 + "px";
+    }
+}
+
+function showRuler() {
+  if(!rulerOn) {
+    eRuler.innerHTML = ""; return;
+  }
+  let code = "<svg width='" + pageWidthIn*pxPerInPaper + "px' height='" +  pageHeightIn*pxPerInPaper + "px' style='position:absolute; top:0; left:0;'>" +
+    "<path stroke='blue' fill='none' d='";
+  for (let i = 1; i < pageHeightIn*16; i ++)
+    code += ' M' + WORK_WIDTH + ' ' + (i*pxPerInPaper/16) + 'h-' + ((i%16 == 0) ? 50 : (i%8 == 0) ? 40 : (i%4 == 0) ? 30 : (i%2 == 0) ? 20 : 10);
+  for (let i = 1; i < pageWidthIn*16 - 5; i ++)
+      code += ' M' + (i*pxPerInPaper/16) + ' 0 v' + ((i%16 == 0) ? 50 : (i%8 == 0) ? 40 : (i%4 == 0) ? 30 : (i%2 == 0) ? 20 : 10);
+  code += "'/>";
+  for (let i = 1; i < pageHeightIn; i ++)
+    code += "<text stroke='blue' style='text-anchor:end' x='" + (WORK_WIDTH - 60) + "' y='" + (i*pxPerInPaper + 6) + "'>" + i + "</text>";
+  for (let i = 1; i < (pageWidthIn*16 - 5)/16; i ++)
+    code += "<text stroke='blue' style='text-anchor:middle' x='" + (i*pxPerInPaper) + "' y='74'>" + i + "</text>";
+  code += "</svg>"
+//  code += "<svg width='" + pageWidthIn*pxPerInPaper + "px' height='" +  pageHeightIn*pxPerInPaper + "px' style='position:absolute; top:0; left:0;'>" +
+//    <svg id="movable-ruler-x-h0" ruler_id="0" style="position:absolute; width:22px; height:22px; cursor:move;">
+//                            <path fill="white" stroke="black" d="M1 1 h20 l-10 20 l-10 -20"/>
+  eRuler.innerHTML = code;
+
+for (let i = 0; i < mRulerXH.length; i++) {
+    mRulerXH[i].style.top = pdfHolder.clientTop - 21 + 'px';
+    mRulerXH[i].style.left = pdfHolder.clientLeft - 10 + rulerx[i] + 'px';
+    mRulerX[i].style.left = rulerx[i] + "px";
+}    
+for (let i = 0; i < mRulerYH.length; i++) {
+    mRulerYH[i].style.top = pdfHolder.clientTop - 10 + rulery[i] + 'px';
+    mRulerYH[i].style.left = pdfHolder.clientLeft - 21 + 'px';
+    mRulerY[i].style.top = rulery[i] + "px";
+}
+
 }
 
 
 
+function showTolerance() {
+
+}
 
 
 
@@ -202,9 +274,13 @@ p {
       ePageWidth.innerHTML = pageWidthIn;
       ePageHeight.innerHTML = pageHeightIn;
       scale = WORK_WIDTH / viewport.width;
+      pxPerInPaper = WORK_WIDTH / pageWidthIn;
       viewport = page.getViewport({scale: scale});
       canvas.height = viewport.height;
       canvas.width = viewport.width;
+
+      ePageSvg.style.height = pxPerInPaper*pageHeightIn + 1 + 'px';
+      showRuler();
 
       // Render PDF page into canvas context
       var renderContext = {
