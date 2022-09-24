@@ -1,0 +1,618 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.3.200/pdf.min.js"></script> -->
+<script src="./pdf.js/2.3.200/pdf.min.js"></script>
+<script src="./envelopes.js"></script>
+<style>
+    .box {
+        border:1px solid rgba(0,0,0,0.2);
+        box-sizing: border-box;
+        margin: 0;
+        display: none;
+    }
+    text {
+        font-family: Courier, monospace;
+        font-size: 20px;
+        user-select: none;
+    }
+    table {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10pt;
+        margin: 0;
+        border: 0;
+    }
+    .coord {
+        width: 2em;
+        padding: 0 1em 0 0;
+    }
+    .button:hover {
+        filter: brightness(90%);
+    }
+    .button:active {
+        filter: brightness(80%);
+    }
+    #help {
+        position: fixed;
+        border: 1px solid black;
+        padding: 30pt;
+        width: 400px;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 12pt;
+        text-align: left;
+        line-height: 1.2;
+        z-index: 100;
+        background-color: white;
+    }
+    #help ol {
+        margin: 0 0 0 -2em;
+    }
+    #help li {
+        margin: 6pt 0;
+    }
+    #help p {
+        text-align: center;
+    }
+    #img-panel div, #img-panel svg {
+        position: absolute;
+    }
+    
+</style>
+</head>
+<body>
+    <div id="help">
+        <p><b>How to use</b></p>
+        <ol>
+            <li>Open a pdf file by clicking "Choose File" or "Browse" button.</li>
+            <li>Go to the required page by clicking "Previous" or "Next" buttons.</li>
+            <li>Select the envelope code from the drop-down list.</li>
+            <li>Click "Tap Left" or "Tap Right" button to conduct tap left or tap right test, correspondingly.</li>
+            <li>Check "Ruler" to view ruler and measure distances.</li>
+            <li>Check "Address block tolerance" to view 1/8" margins in the Address window.</li>
+            <li>Check "OMR codes" to view OMR codes next to OMR lines.</li>
+        </ol>
+        <p id="ok" style="display:none;"><button onclick="hidehelp();">OK</button></p>
+    </div>
+    <button id="callhelp" onclick="hidehelp();" style="position:fixed; font-weight:bold; display:none; z-index:101;">?</button>
+    <table>
+        <tr style="vertical-align: top;">
+            <td id="img-panel" style="height:auto;">
+                <svg id="envelope" style="position:absolute; z-index:2; width:1000px; transform-origin:top left;"></svg>
+                <svg id="ab" style="position:absolute; z-index:2; transform-origin:top left;"></svg>
+                <div id="pdf-holder" style="position:absolute;margin:0;">
+                    <svg id="foldlines" style="position:absolute; z-index:1; transform-origin:top left;"></svg>
+                    <div id="loading" class="box" style="text-align:center;vertical-align:center;height:300px;line-height:300px;font-size:20pt;"><b>Loading...</b></div>
+                    <canvas id="pdf-canvas" class="box" width="2000px"></canvas>
+                </div>
+                <div id="overlay" style="position:absolute; z-index:3; transform-origin:top left;">
+                    <div id="ruler-holder" style="position:absolute; margin:0; display:none;">
+                        <svg id="ruler"></svg>
+                        <svg id="vruler1">
+                            <svg class="handle" onmousedown="dragX(0,1);" ruler_id="0">
+                                <path fill="white" stroke="black" d="M1 1 v20 l20 -10 l-20 -10"/>
+                            </svg>
+                        </svg>
+                        <svg id="movable-ruler-x-h0" ruler_id="0" style="position:absolute; width:22px; height:22px; cursor:move;">
+                            <path fill="white" stroke="black" d="M1 1 h20 l-10 20 l-10 -20"/>
+                        </svg>
+                        <svg id="movable-ruler-x0" style="position:absolute; width:3px;"></svg>
+                        <svg id="movable-ruler-y-h0" ruler_id="0" style="position:absolute; width:22px; height:22px; cursor:move;">
+                            <path fill="white" stroke="black" d="M1 1 v20 l20 -10 l-20 -10"/>
+                        </svg>
+                        <svg id="movable-ruler-y0" style="position:absolute; height:3px;"></svg>
+                        <svg id="movable-ruler-x-h1" ruler_id="1" style="position:absolute; width:22px; height:22px; cursor:move;">
+                            <path fill="white" stroke="black" d="M1 1 h20 l-10 20 l-10 -20"/>
+                        </svg>
+                        <svg id="movable-ruler-x1" style="position:absolute; width:3px;"></svg>
+                        <svg id="movable-ruler-y-h1" ruler_id="1" style="position:absolute; width:22px; height:22px; cursor:move;">
+                            <path fill="white" stroke="black" d="M1 1 v20 l20 -10 l-20 -10"/>
+                        </svg>
+                        <svg id="movable-ruler-y1" style="position:absolute; height:3px;"></svg>
+                        <svg id="ruler-diff" style="position:absolute;"></svg>
+                        <svg id="omr" style="position:absolute; display:none;"></svg>
+                    </div>
+
+                </div>
+            </td>
+            <td>&nbsp;</td>
+            <td>
+                <input type="file" accept=".pdf" onchange="openPDF(this.files[0]);"> 
+                <div id="pdf-controls" style="display:none;">
+                    <button id="pdf-prev" onclick="prevPage();">Previous</button>
+                    <button id="pdf-next" onclick="nextPage();">Next</button>
+                    &nbsp;Page&nbsp;<span id="pdf-current-page"></span>&nbsp;of&nbsp;<span id="pdf-total-pages"></span><br/><br/>
+                    <label for="envelope">Envelope:</label>
+                    <select name="envelope" id="envelope-list" onchange="showEnvelope(this.selectedIndex);"></select>
+                    <br/><button id="tap-left" disabled onclick="tap(true)">Tap Left</button>
+                    <button id="tap-right" disabled onclick="tap(false)">Tap Right</button><br/><br/>
+                    <input type="checkbox" onchange="showRuler()">&nbsp;Ruler<br/>
+                    <input type="checkbox" disabled id="show-ab" onchange="showAB()">&nbsp;Address block tolerance<br/>
+                    <input type="checkbox" onchange="showOMR()">&nbsp;OMR codes<br/><br/>
+                    <table style="user-select:none;"><tr>
+                        <td style="width:5em;">Pages:&nbsp;<span id="pages">1</span></td>
+                        <td>&nbsp;
+                            <svg class="button" onclick="pageplus()" width="16" height="16" class="button">
+                                <path fill="whitesmoke" stroke="black" d="M0 0 v16 h16 v-16 h-16"/>
+                                <path fill="black" stroke="transparent" d="M7 3 h2 v4 h4 v2 h-4 v4 h-2 v-4 h-4 v-2 h4 v-4"/>
+                            </svg>
+                        </td>
+                        <td>&nbsp;
+                            <svg class="button" onclick="pageminus()" width="16" height="16" class="button">
+                                <path fill="whitesmoke" stroke="black" d="M0 0 v16 h16 v-16 h-16"/>
+                                <path fill="black" stroke="transparent" d="M3 7 h10 v2 h-10 v-2"/>
+                            </svg>
+                        </td>
+                    </tr></table>
+                    
+
+                    <br/>
+                    <span id="coords" style="display:none;">
+                        <table style="text-align:right;">
+                            <tr><td>X1:</td><td class="coord" id="mr-x0"></td><td>X2:</td><td class="coord" id="mr-x1"></td><td>dX:</td><td class="coord" id="mr-x2"></td></tr>
+                            <tr><td>Y1:</td><td class="coord" id="mr-y0"></td><td>Y2:</td><td class="coord" id="mr-y1"></td><td>dY:</td><td class="coord" id="mr-y2"></td></tr>
+                        </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+    <script>
+
+var left = true, leftTap, rightTap, fold, edata, pages = 1;
+var rulerx = [124, 783], rulery = [231, 452], rulerxScreen = [], ruleryScreen = [], rulerDragged;
+var inch2px = LEFT_PANEL_WIDTH / PAPER_WIDTH;
+const imgPanel = document.getElementById("img-panel");
+const loading = document.getElementById("loading");
+const pdfControls = document.getElementById("pdf-controls");
+const pdfCanvas = document.getElementById("pdf-canvas");
+const pdfHolder = document.getElementById("pdf-holder");
+const pdfCurrentPage = document.getElementById("pdf-current-page");
+const pdfTotalPages = document.getElementById("pdf-total-pages");
+const pdfPrev = document.getElementById("pdf-prev");
+const pdfNext = document.getElementById("pdf-next");
+const envelope = document.getElementById("envelope");
+const tapLeft = document.getElementById("tap-left");
+const tapRight = document.getElementById("tap-right");
+const select = document.getElementById("envelope-list");
+const ruler = document.getElementById("ruler");
+const rulerHolder = document.getElementById("ruler-holder");
+const coords = document.getElementById("coords");
+const mRulerX = [ document.getElementById("movable-ruler-x0"), document.getElementById("movable-ruler-x1") ];
+const mRulerXH = [ document.getElementById("movable-ruler-x-h0"), document.getElementById("movable-ruler-x-h1") ];
+const mRulerY = [ document.getElementById("movable-ruler-y0"), document.getElementById("movable-ruler-y1") ];
+const mRulerYH = [ document.getElementById("movable-ruler-y-h0"), document.getElementById("movable-ruler-y-h1") ];
+const rulerDiff = document.getElementById("ruler-diff");
+const mrX = [ document.getElementById("mr-x0"), document.getElementById("mr-x1"), document.getElementById("mr-x2") ];
+const mrY = [ document.getElementById("mr-y0"), document.getElementById("mr-y1"), document.getElementById("mr-y2") ];
+const omr = document.getElementById("omr");
+const foldlines = document.getElementById("foldlines");
+const show_ab = document.getElementById("show-ab");
+const ab = document.getElementById("ab");
+const pages_no = document.getElementById("pages");
+const help = document.getElementById("help");
+const ok = document.getElementById("ok");
+const callhelp = document.getElementById("callhelp");
+const filter = "<defs><filter id='f1'><feGaussianBlur in='SourceAlpha' stdDeviation='4'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 15 0'/>" +
+    "<feMerge><feMergeNode/><feMergeNode in='SourceGraphic'/></feMerge></filter></defs>";
+
+imgPanel.style.width = LEFT_PANEL_WIDTH + 'px';
+imgPanel.style.maxWidth = LEFT_PANEL_WIDTH + 'px';
+imgPanel.style.minWidth = LEFT_PANEL_WIDTH + 'px';
+pdfCanvas.style.width = LEFT_PANEL_WIDTH + 'px';
+loading.style.width = LEFT_PANEL_WIDTH + 'px';
+
+select.innerHTML += "<option> </option>";
+for (let i = 0; i < envelopes.length; i ++) {
+    select.innerHTML += "<option>" + envelopes[i][0] + " </option>";
+}
+
+help.style.top = (window.innerHeight > help.clientHeight) ? (window.innerHeight - help.clientHeight)/2 : 0;
+help.style.left = (window.innerWidth > help.clientWidth) ? (window.innerWidth - help.clientWidth)/2 : 0;
+callhelp.style.top = window.innerHeight - 60;
+callhelp.style.left = window.innerWidth - 80;
+const page_in2px = LEFT_PANEL_WIDTH / PAPER_WIDTH;
+const page_height = PAPER_HEIGHT * page_in2px;
+ruler.style.width = LEFT_PANEL_WIDTH + 'px';
+ruler.style.height = page_height + 'px';
+omr.style.width = LEFT_PANEL_WIDTH + 'px';
+omr.style.height = page_height + 'px';
+rulerDiff.style.width = LEFT_PANEL_WIDTH + 'px';
+rulerDiff.style.height = page_height + 'px';
+ab.style.width = LEFT_PANEL_WIDTH + 'px';
+ab.style.height = page_height + 'px';
+foldlines.style.width = LEFT_PANEL_WIDTH + 'px';
+foldlines.style.height = page_height + 'px';
+
+
+let ruler_code = "<path stroke='blue' fill='transparent' d='";
+for (let i = 1; i < PAPER_HEIGHT*16; i ++) {
+    ruler_code += ' M' + LEFT_PANEL_WIDTH + ' ' + (i*page_in2px/16) + 'h-';
+    if (i % 16 == 0) ruler_code += 50;
+    else if (i % 8 == 0) ruler_code += 40;
+    else if (i % 4 == 0) ruler_code += 30;
+    else if (i % 2 == 0) ruler_code += 20;
+    else ruler_code += 10;
+}
+for (let i = 1; i < PAPER_WIDTH*16 - 5; i ++) {
+    ruler_code += ' M' + (i*page_in2px/16) + ' 0 v';
+    if (i % 16 == 0) ruler_code += 50;
+    else if (i % 8 == 0) ruler_code += 40;
+    else if (i % 4 == 0) ruler_code += 30;
+    else if (i % 2 == 0) ruler_code += 20;
+    else ruler_code += 10;
+}
+ruler_code += "'/>";
+for (let i = 1; i < PAPER_HEIGHT; i ++) {
+    let o = (i > 9) ? 86 : 75;
+    ruler_code += "<text stroke='blue' x='" + (LEFT_PANEL_WIDTH - o) + "' y='" + (i*page_in2px + 6) + "'>" + i + "</text>";
+}
+for (let i = 1; i < (PAPER_WIDTH*16 - 5)/16; i ++) {
+    let o = (i > 9) ? 18 : 7;
+    ruler_code += "<text stroke='blue' x='" + (i*page_in2px - o) + "' y='74'>" + i + "</text>";
+}
+ruler.innerHTML = ruler_code;
+for (let i = 0; i < mRulerXH.length; i++) {
+    mRulerXH[i].style.top = pdfHolder.clientTop - 21 + 'px';
+    mRulerXH[i].style.left = pdfHolder.clientLeft - 10 + rulerx[i] + 'px';
+    mRulerX[i].style.left = rulerx[i] + "px";
+}    
+for (let i = 0; i < mRulerYH.length; i++) {
+    mRulerYH[i].style.top = pdfHolder.clientTop - 10 + rulery[i] + 'px';
+    mRulerYH[i].style.left = pdfHolder.clientLeft - 21 + 'px';
+    mRulerY[i].style.top = rulery[i] + "px";
+}
+
+let omr_code = filter; // + "<path stroke='white' fill='white' d='M80 332 v330 h72 v-330 h-72'/>";
+const omrCode = [ 'TPC 8', 'TPC 4', 'TPC 2', 'TPC 1', 'SEL 5', 'SEL 4', 'SEL 3', 'QC', 'DVRT', 'SFTY', 'SEL 2', 'SEL 1', 'SEQ 2', 'SEQ 1', 'EOC', 'BM' ];
+for (let i = 0; i < 16; i ++) {
+    omr_code += "<text filter='url(#f1)' stroke='green' x='85' y='" + (i*20.55 + 352) + "'>" + omrCode[i] + "</text>";
+}
+omr.innerHTML = omr_code;
+
+function showRuler() {
+    if (rulerHolder.style.display == 'none') {
+        rulerHolder.style.display = 'block';
+        coords.style.display = 'inline';
+        updateCoords();
+    }
+
+    else {
+        rulerHolder.style.display = 'none';
+        coords.style.display = 'none';
+    }
+}
+
+for (let i = 0; i < mRulerXH.length; i++)
+    mRulerXH[i].onmousedown = dragRulerX;
+for (let i = 0; i < mRulerYH.length; i++)
+    mRulerYH[i].onmousedown = dragRulerY;
+
+function endDrag() {
+    document.onmouseup = null;
+    document.onmousemove = null;
+}
+
+function dragRulerX(e) {
+    rulerDragged = parseInt(this.getAttribute("ruler_id"));
+    e = e || window.event;
+    e.preventDefault();
+    rulerxScreen[rulerDragged] = e.clientX;
+    document.onmouseup = endDrag;
+    document.onmousemove = moveX;
+}
+
+function moveX(e) {
+    e = e || window.event;
+    e.preventDefault();
+    let dx = e.clientX - rulerxScreen[rulerDragged];
+    rulerxScreen[rulerDragged] = e.clientX;
+    rulerx[rulerDragged] += dx;
+    if (rulerx[rulerDragged] < 0) rulerx[rulerDragged] = 0;
+    if (rulerx[rulerDragged]/inch2px >= PAPER_WIDTH) rulerx[rulerDragged] = Math.floor(PAPER_WIDTH * inch2px - 1);
+    mRulerXH[rulerDragged].style.left = rulerx[rulerDragged] - 10 + 'px';
+    mRulerX[rulerDragged].style.left = rulerx[rulerDragged] + "px";
+    updateCoords();
+}
+
+function dragRulerY(e) {
+    rulerDragged = parseInt(this.getAttribute("ruler_id"));
+    e = e || window.event;
+    e.preventDefault();
+    ruleryScreen[rulerDragged] = e.clientY;
+    document.onmouseup = endDrag;
+    document.onmousemove = moveY;
+}
+
+function moveY(e) {
+    e = e || window.event;
+    e.preventDefault();
+    let dy = e.clientY - ruleryScreen[rulerDragged];
+    ruleryScreen[rulerDragged] = e.clientY;
+    rulery[rulerDragged] += dy;
+    if (rulery[rulerDragged] < 0) rulery[rulerDragged] = 0;
+    if (rulery[rulerDragged]/inch2px >= PAPER_HEIGHT) rulery[rulerDragged] = Math.floor(PAPER_HEIGHT * inch2px - 1);
+    mRulerYH[rulerDragged].style.top = rulery[rulerDragged] - 10 + 'px';
+    mRulerY[rulerDragged].style.top = rulery[rulerDragged] + "px";
+    updateCoords();
+}
+
+function updateCoords() {
+    let c0 = rulerx[0]/inch2px;
+    let c1 = rulerx[1]/inch2px;
+    if (c0 > c1) {
+        let t = c0; c0 = c1; c1 = t;
+    }
+    mrX[0].innerHTML = c0.toFixed(2) + '"'; mrX[1].innerHTML = c1.toFixed(2) + '"'; mrX[2].innerHTML = (c1 - c0).toFixed(2) + '"';
+
+
+    let x1 = rulerx[0];
+    let x2 = rulerx[1];
+    if (x1 > x2) {
+        let t = x1; x1 = x2; x2 = t;
+    }
+
+//    let diff = "<defs><filter id='f1'><feFuncA type='linear' slope='20'><feGaussianBlur in='SourceAlpha' stdDeviation='3'/></feFuncA></filter></defs>";
+    let diff = filter;
+    diff += "<text stroke='blue' filter='url(#f1)' x='" + (x1 + x2)/2 + "' y='125' style='text-anchor:middle;z-index:98;'>" + ((x2 - x1)/inch2px).toFixed(2) + "\"</text>" +
+        "<path stroke='blue' fill='transparent' d='M" + x1 + " 100 ";
+    if (x2 - x1 > 50)
+        diff += "l10 -10 l-10 10 l10 10 l-10 -10 h" + (x2 - x1) + " l-10 -10 l10 10 l-10 10 l10 -10'/>";
+    else
+        diff += "l-10 -10 m0 20 l10 -10 h-20 m" + (x2 - x1 + 40) + " 0 h-20 l10 -10 m0 20 l-10 -10'/>";
+
+    let y1 = rulery[0];
+    let y2 = rulery[1];
+    if (y1 > y2) {
+        let t = y1; y1 = y2; y2 = t;
+    }
+    diff += "<text stroke='blue' filter='url(#f1)' x='50' y='" + (y1 + y2 + 12)/2 + "' style='text-anchor:middle;z-index:99;'>" + ((y2 - y1)/inch2px).toFixed(2) + "\"</text>" +
+        "<path stroke='blue' fill='transparent' d='M10 " + y1;
+    if (y2 - y1 > 50)
+        diff += "l-10 10 l10 -10 l10 10 l-10 -10 v" + (y2 - y1) + " l-10 -10 l10 10 l10 -10 l-10 10'/>";
+    else
+        diff += "l-10 -10 m20 0 l-10 10 v-20 m0 " + (y2 - y1 + 40) + " v-20 l-10 10 m20 0 l-10 -10'/>";
+
+    rulerDiff.innerHTML = diff;
+
+    c0 = rulery[0]/inch2px;
+    c1 = rulery[1]/inch2px;
+    if (c0 > c1) {
+        let t = c0; c0 = c1; c1 = t;
+    }
+    mrY[0].innerHTML = c0.toFixed(2) + '"'; mrY[1].innerHTML = c1.toFixed(2) + '"'; mrY[2].innerHTML = (c1 - c0).toFixed(2) + '"';
+}
+
+function toInches(n) {
+    let p0 = Math.round(n*16)/16;
+    let p1 = Math.floor(p0);
+    let p2 = Math.round((p0 - p1)*16);
+    if (p2 == 0) return p1 + '"';
+    let p3 = 16;
+    while (p2%2 == 0) { p2 /= 2; p3 /= 2; }
+    if (p1 == 0) p1 = "";
+    return p1 + ' ' + p2 + '/' + p3 + '"';
+}
+
+function showOMR() {
+    if (omr.style.display == 'none') omr.style.display = 'block';
+    else omr.style.display = 'none';
+}
+
+function tap(l) {
+    if (l == left) return;
+    left = l;
+    tapLeft.disabled = l;
+    tapRight.disabled = !l;
+    if (left) {
+        pdfHolder.style.marginLeft = leftTap;
+    }
+    else {
+        pdfHolder.style.marginLeft = rightTap;
+    }
+}
+
+function showEnvelope(e) {
+    if (e == 0) {
+        envelope.innerHTML = "";
+        pdfCanvas.style.width = LEFT_PANEL_WIDTH + 'px';
+        pdfHolder.style.marginTop = "0";
+        pdfHolder.style.marginLeft = "0";
+        ruler.style.transform = 'scale(1)';
+        omr.style.transform = 'scale(1)';
+        rulerDiff.style.transform = 'scale(1)';
+        foldlines.innerHTML = "";
+        ab.innerHTML = "";
+        show_ab.disabled = true;
+        show_ab.checked = false;
+        inch2px = LEFT_PANEL_WIDTH / PAPER_WIDTH;
+    }
+    else {
+        edata = envelopes[e-1];
+        if (edata[1] < PAPER_WIDTH) alert('The envelope is more narrow than the page - check the data!');
+        fold = 1; while (edata[2] < PAPER_HEIGHT/fold) fold++;
+
+        let h = Math.round(edata[2] * 1000 / edata[1]);
+        envelope.style.height = (h + 1) + 'px';
+        envelope.style.transform = 'scale(' + LEFT_PANEL_WIDTH/1000 + ')';
+        ruler.style.transform = 'scale(' + PAPER_WIDTH/edata[1] + ')';
+        omr.style.transform = 'scale(' + PAPER_WIDTH/edata[1] + ')';
+        foldlines.style.transform = 'scale(' + PAPER_WIDTH/edata[1] + ')';
+        rulerDiff.style.transform = 'scale(' + PAPER_WIDTH/edata[1] + ')';
+        envelope.innerHTML = "<path stroke='red' fill='transparent' d='M0 0 v" + h + " h" + 1000 + " v-" + h + " h-" + 1000 + " " + edata[3] + "'/>";
+        inch2px = LEFT_PANEL_WIDTH/edata[1];
+        pdfCanvas.style.width = PAPER_WIDTH*inch2px + 'px';
+        let topTap = ((edata[2] - PAPER_HEIGHT/fold)*inch2px - inset*inch2px) + 'px';
+        pdfHolder.style.marginTop = topTap;
+
+        let fold_code = "";
+        if (fold > 1) {
+            fold_code = "<path fill='transparent' stroke-dasharray='5,5' stroke='magenta' d='";
+            for (let i = 1; i < fold; i++) {
+                fold_code += " M1 " + page_height*i/fold + " h" + (LEFT_PANEL_WIDTH - 2);
+            }
+            fold_code +=  "'/>";
+        }
+        foldlines.innerHTML = fold_code;
+        show_ab.disabled = false;
+
+        leftTap = inset*inch2px + "px";
+        rightTap = (edata[1] - PAPER_WIDTH - inset)*inch2px + "px";
+        left = false;
+        tap(true);
+        showAB();
+    }
+    for (let i = 0; i < mRulerY.length; i ++) mRulerY[i].style.width = PAPER_WIDTH*inch2px + 'px';
+    for (let i = 0; i < mRulerX.length; i ++) mRulerX[i].style.height = PAPER_HEIGHT*inch2px + 'px';
+}
+
+function showAB() {
+    console.log(show_ab.checked);
+    if (show_ab.checked) {
+        let awcode = edata[3].split(" ");
+        for (let i = 0; i < awcode.length; i ++) console.log(i + '. ' + awcode[i]);
+        const scale = LEFT_PANEL_WIDTH / 1000;
+        const round = parseFloat(awcode[6])*scale;
+        const h = parseFloat(awcode[2].substring(1,awcode[2].length))*scale + round*2;
+        const v = parseFloat(awcode[7].substring(1,awcode[7].length))*scale + round*2;
+        const x0 = parseFloat(awcode[0].substring(1,awcode[0].length))*scale - round;
+        const y0 = parseFloat(awcode[1])*scale;
+        ab.innerHTML = "<path fill='transparent' stroke = 'red' stroke-dasharray='8,8' d='" + 
+            "M" + (x0 + inch2px/8) + " " + (y0 + inch2px/8) + " v" + (v - inch2px/4) + " h" + (h - inch2px/4) + "'/>";
+    }
+    else {
+        ab.innerHTML = "";
+    }
+}
+
+function pageplus() {
+    if (pages >= 20) return;
+    pages++;
+    pages_no.innerHTML = pages;
+}
+
+function pageminus() {
+    if (pages <= 1) return;
+    pages--;
+    pages_no.innerHTML = pages;
+}
+
+function hidehelp() {
+    if (help.style.display == 'none') {
+        help.style.display = 'block';
+        callhelp.style.display = 'none';
+    } 
+    else {
+        help.style.display = 'none';
+        callhelp.style.display = 'block';
+    }
+}
+
+var _PDF_DOC,
+    _CURRENT_PAGE,
+    _TOTAL_PAGES,
+    _PAGE_RENDERING_IN_PROGRESS = 0,
+    _CANVAS = document.querySelector('#pdf-canvas');
+
+async function showPDF(pdf_url) {
+    loading.style.display = 'block';
+
+    try {
+        _PDF_DOC = await pdfjsLib.getDocument({ url: pdf_url });
+    }
+    catch(error) {
+        alert(error.message);
+    }
+
+    _TOTAL_PAGES = _PDF_DOC.numPages;
+    
+    loading.style.display = 'none';
+    pdfCanvas.style.display = 'block';
+    pdfControls.style.display = 'block';
+    pdfTotalPages.innerHTML = _TOTAL_PAGES;
+
+    showPage(1);
+
+
+}
+
+async function showPage(page_no) {
+    _PAGE_RENDERING_IN_PROGRESS = 1;
+    _CURRENT_PAGE = page_no;
+    pdfCurrentPage.innerHTML = page_no;
+
+    pdfNext.disabled = true;
+    pdfPrev.disabled = true;
+
+    loading.style.width = _CANVAS.clientWidth + 'px';
+    loading.style.height = _CANVAS.clientHeight + 'px';
+    loading.style.lineHeight = _CANVAS.clientHeight + 'px';
+    pdfCanvas.style.display = 'none';
+    loading.style.display = 'block';
+
+    pdfCurrentPage.innerHTML = page_no;
+    
+    try {
+        var page = await _PDF_DOC.getPage(page_no);
+    }
+    catch(error) {
+        alert(error.message);
+    }
+
+    var pdf_original_width = page.getViewport(1).width;
+    var scale_required = _CANVAS.width / pdf_original_width;
+    var viewport = page.getViewport(scale_required);
+    _CANVAS.height = viewport.height;
+
+    var render_context = {
+        canvasContext: _CANVAS.getContext('2d'),
+        viewport: viewport
+    };
+    try {
+        await page.render(render_context);
+    }
+    catch(error) {
+        alert(error.message);
+    }
+
+    _PAGE_RENDERING_IN_PROGRESS = 0;
+
+    if (page_no < _TOTAL_PAGES) pdfNext.disabled = false;
+    if (page_no > 1) pdfPrev.disabled = false;
+
+//    await wait(2000);
+
+    pdfCanvas.style.display = 'block';
+    loading.style.display = 'none';
+    for (let i = 0; i < mRulerX.length; i++) {
+        mRulerX[i].style.height= _CANVAS.clientHeight + 'px';
+        mRulerX[i].innerHTML='<path fill="transparent" stroke="blue" d="M0 0 v' + _CANVAS.clientHeight + '"/>';
+    }
+    for (let i = 0; i < mRulerY.length; i++) {
+        mRulerY[i].style.width= _CANVAS.clientWidth + 'px';
+        mRulerY[i].innerHTML='<path fill="transparent" stroke="blue" d="M0 0 h' + _CANVAS.clientWidth + '"/>';
+    }
+}
+
+function openPDF(f) {
+    help.style.display = 'none';
+    ok.style.display = 'block';
+    callhelp.style.display = 'block';
+    showPDF(URL.createObjectURL(f));
+}
+
+function prevPage() {
+    if(_CURRENT_PAGE > 1) showPage(--_CURRENT_PAGE);
+}
+
+function nextPage() {
+    if(_CURRENT_PAGE < _TOTAL_PAGES) showPage(++_CURRENT_PAGE);
+}
+
+async function wait(t) {
+    await new Promise(r => setTimeout(r, t));
+}
+
+</script>
+
+</body>
+</html>
