@@ -1,0 +1,562 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+    td {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        padding: 3px 5px;
+        text-align: center;
+        vertical-align: middle;
+    }
+    td.bold {
+        font-weight: bold;
+    }
+    td.left {
+        text-align: left;
+    }
+    .small {
+        font-size: 12px;
+    }
+</style>
+</head>
+<body>
+    <svg style="display: none">
+        <defs>
+            <symbol id="button-plus" viewbox="0 0 16 16">
+                <path fill="black" stroke="transparent" d="M7 3 h2 v4 h4 v2 h-4 v4 h-2 v-4 h-4 v-2 h4 v-4"/>
+            </symbol>
+            <symbol id="button-minus" viewbox="0 0 16 16">
+                <path fill="black" stroke="transparent" d="M3 7 h10 v2 h-10 v-2"/>
+            </symbol>
+        </defs>
+        <!-- to make the circle-arrow-left.svg file
+        <use href="#button-plus"/>
+        <use href="#button-minus"/>
+             also usable as image: -->
+    </svg>
+
+    <table style="position:absolute; width:250px; user-select:none;">
+        <tr id="file" style="display:table-row;">
+            <td class="left" colspan="4">
+                <button onclick="let input = document.createElement('input');
+                    input.type = 'file'; input.accept = '.jpg,*.png';
+                    input.onchange = _ => { 
+                        eFilename.innerHTML = input.files[0].name;
+                        loadImage(input.files[0]); 
+                    };
+                    input.click();">Open Image</button> <span id="filename" class="small"></span>
+            </td>
+        </tr>
+        <tr>
+            <td><button bid="crminus90"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Rotate 90°</td>
+            <td><button bid="crplus90"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td width='60px'></td>
+        </tr>
+        <tr>
+            <td><button bid="crminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Rotate</td>
+            <td><button bid="crplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td width='60px'></td>
+        </tr>
+        <tr>
+            <td><button bid="cyminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Crop Top</td>
+            <td><button bid="cyplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><button bid="cxminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Crop Left</td>
+            <td><button bid="cxplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><button bid="cwminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Width</td>
+            <td><button bid="cwplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="ewidth"></td>
+        </tr>
+        <tr>
+            <td><button bid="chminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Height</td>
+            <td><button bid="chplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="eheight"></td>
+        </tr>
+        <tr>
+            <td class="bold left" colspan="4"><input type="checkbox" disabled  id="check1" onchange="switchW1();"/> Address Window</td>
+        </tr>
+        <tr>
+            <td><button bid="xminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Position Left</td>
+            <td><button bid="xplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="x1"></td>
+        </tr>
+        <tr>
+            <td><button bid="yminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Position Top</td>
+            <td><button bid="yplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="y1"></td>
+        </tr>
+        <tr>
+            <td><button bid="wminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Width</td>
+            <td><button bid="wplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="w1"></td>
+        </tr>
+        <tr>
+            <td><button bid="hminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Height</td>
+            <td><button bid="hplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="h1"></td>
+        </tr>
+        <tr>
+            <td><button bid="rminus"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Rounding</td>
+            <td><button bid="rplus"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="r1"></td>
+        </tr>
+        <tr>
+            <td class="bold left" colspan="4"><input type="checkbox" id="check2" disabled onchange="switchW2();"/> Sender Window</td>
+        </tr>
+        <tr>
+            <td><button bid="xminus2"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Position Left</td>
+            <td><button bid="xplus2"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="x2"></td>
+        </tr>
+        <tr>
+            <td><button bid="yminus2"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Position Top</td>
+            <td><button bid="yplus2"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="y2"></td>
+        </tr>
+        <tr>
+            <td><button bid="wminus2"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Width</td>
+            <td><button bid="wplus2"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="w2"></td>
+        </tr>
+        <tr>
+            <td><button bid="hminus2"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Height</td>
+            <td><button bid="hplus2"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="h2"></td>
+        </tr>
+        <tr>
+            <td><button bid="rminus2"><svg width="12" height="12"><use href="#button-minus"/></svg></button></td>
+            <td>Rounding</td>
+            <td><button bid="rplus2"><svg width="12" height="12"><use href="#button-plus"/></svg></button></td>
+            <td id="r2"></td>
+        </tr>
+        <tr>
+            <td class="left" colspan="4"><input type="checkbox" disabled  id="check3" onchange="switchSnap();"/> Snap to Inch Fractions</td>
+        </tr>
+        <tr>
+            <td class="left" colspan="4">
+                <textarea id="code" style="width:100%; height:150px;"></textarea>
+            </td>
+        </tr>
+    </table>
+    <img id="i1" style="height:auto;position:absolute">
+    <div id="crop" style="overflow:hidden;position:absolute;top:0;left:260px"">
+        <img id="image" style="height:auto;position:absolute"/>
+    </div>
+    <svg id="envelope_svg" style="position:absolute;top:0;left:260px">
+        <path id="envelope_path" stroke="red" fill="none"/>
+    </svg>
+
+<script>
+
+const DPI = 300, RQ = 0.55;
+const eButtons = document.getElementsByTagName("button");
+const eCrop = document.getElementById("crop");
+const eImg = document.getElementById("image");
+const eEnvelopeSvg = document.getElementById("envelope_svg");
+const eEnvelopePath = document.getElementById("envelope_path");
+const eHeight = document.getElementById("eheight");
+const eWidth = document.getElementById("ewidth");
+const eX1 = document.getElementById("x1");
+const eY1 = document.getElementById("y1");
+const eW1 = document.getElementById("w1");
+const eH1 = document.getElementById("h1");
+const eR1 = document.getElementById("r1");
+const eX2 = document.getElementById("x2");
+const eY2 = document.getElementById("y2");
+const eW2 = document.getElementById("w2");
+const eH2 = document.getElementById("h2");
+const eR2 = document.getElementById("r2");
+const eFilename = document.getElementById("filename");
+const eCheckW1 = document.getElementById("check1");
+const eCheckW2 = document.getElementById("check2");
+const eCheckSnap = document.getElementById("check3");
+const eCode = document.getElementById("code");
+
+var stage = 0;
+var oDX, cropDX, oDY, cropDY;
+var cropX1, cropY1, cropX2, cropY2, cropR;
+var idx0, idy0, idx, idy, scale, edx, edy;
+var enHeight, enWidth;
+var buttonPressed = 0, downTime, click = false;
+var posx = 0.875, posy = 2, dx = 4.5, dy = 1.5, r = 0.33, posx2 = 0.875, posy2 = 0.4375, dx2 = 3.25, dy2 = 1.0625, r2 = 0.25;
+var win1 = false, win2 = false, snap = false;
+
+eCrop.style.overflow = 'scroll';
+const SCROLL_WIDTH = eCrop.offsetWidth - eCrop.clientWidth + 3;
+eCrop.style.overflow = 'hidden';
+const WORK_WIDTH = window.innerWidth - 260 - SCROLL_WIDTH;
+eEnvelopeSvg.style.width = eCrop.style.width = WORK_WIDTH + 'px';
+
+var keyup = function(state) {
+    buttonPressed = 'none';
+};
+
+var keydown = function(state) {
+    buttonPressed = this.getAttribute("bid");
+    downTime = Date.now();
+    click = true;
+};
+
+function processKeys() {
+    const delay = 300;
+    const MINSTEP = 0.0025;
+    const stepi = (snap) ? 1/16 : MINSTEP;
+    const step = stepi*DPI;
+    const rstep = 0.02;
+    const min = 75;
+
+    if (buttonPressed == 'none') return;
+    if (click || Date.now() - downTime > delay) {
+        click = false;
+        switch (buttonPressed) {
+            case 'crminus90': cropR -= 90; if (cropR < 0) cropR += 360; imgdisplay(); break;
+            case 'crplus90': cropR += 90; if (cropR >= 360) cropR -= 360; imgdisplay(); break;
+            case 'crminus': cropR -= rstep; if (cropR < 0) cropR += 360; imgdisplay(); break;
+            case 'crplus': cropR += rstep; if (cropR >= 360) cropR -= 360; imgdisplay(); break;
+            case 'cxminus':
+                cropX1 -= MINSTEP*DPI;
+                cropX2 += MINSTEP*DPI;
+                if (cropX1 < 0) {
+                    cropX2 += cropX1;
+                    cropX1 = 0;
+                }
+                imgdisplay(); break;
+            case 'cyminus':
+                cropY1 -= MINSTEP*DPI;
+                cropY2 += MINSTEP*DPI;
+                if (cropY1 < 0) {
+                    cropY2 += cropY1;
+                    cropY1 = 0;
+                }
+                imgdisplay(); break;
+            case 'cxplus':
+                cropX1 += MINSTEP*DPI;
+                cropX2 -= MINSTEP*DPI;
+                if (cropX2 < 0) {
+                    cropX1 += cropX2;
+                    cropX2 = 0;
+                }
+                imgdisplay(); break;
+            case 'cyplus':
+                cropY1 += MINSTEP*DPI;
+                cropY2 -= MINSTEP*DPI;
+                if (cropY2 < 0) {
+                    cropY1 += cropY2;
+                    cropY2 = 0;
+                }
+                imgdisplay(); break;
+            case 'cwminus':
+                cropX2 += step;
+                if (cropX2 > idx0 - cropX1 - min) cropX2 = idx0 - cropX1 - min;
+                imgdisplay(); break;
+            case 'chminus':
+                cropY2 += step;
+                if (cropY2 > idy0 - cropY1 - min) cropY2 = idy0 - cropY1 - min;
+                imgdisplay(); break;
+            case 'cwplus':
+                cropX2 -= step; if (cropX2 < 0) cropX2 = 0;
+                imgdisplay(); break;
+            case 'chplus':
+                cropY2 -= step; if (cropY2 < 0) cropY2 = 0;
+                imgdisplay(); break;
+
+            case 'yminus':
+                if (!win1) return;
+                posy -= stepi;
+                if (posy < 0) posy = 0;
+                imgdisplay(); break;
+            case 'xminus':
+                if (!win1) return;
+                posx -= stepi;
+                if (posx < 0) posx = 0;
+                imgdisplay(); break;
+            case 'xplus':
+                if (!win1) return;
+                posx += stepi;
+                if (posx > idx/DPI - dx) posx = idx/DPI - dx; 
+                imgdisplay(); break;
+            case 'yplus':
+                if (!win1) return;
+                posy += stepi;
+                if (posy > idy/DPI - dy) posy = idy/DPI - dy; 
+                imgdisplay(); break;
+            case 'hminus':
+                if (!win1) return;
+                dy -= stepi;
+                if (dy < 2*r) dy = 2*r;
+                imgdisplay(); break;
+            case 'wminus':
+                if (!win1) return;
+                dx -= stepi;
+                if (dx <= 2*r) dx = 2*r; 
+                imgdisplay(); break;
+            case 'wplus':
+                if (!win1) return;
+                dx += stepi;
+                if (posx + dx > enWidth) dx = enWidth - posx;
+                imgdisplay(); break;
+            case 'hplus':
+                if (!win1) return;
+                dy += stepi; 
+                if (posy + dy > enHeight) dy = enHeight - posy;
+                imgdisplay(); break;
+            case 'rplus':
+                if (!win1) return;
+                r += MINSTEP;
+                if (r*2 > dx) r = dx/2;
+                if (r*2 > dy) r = dy/2;
+                imgdisplay(); break;
+            case 'rminus':
+                if (!win1) return;
+                r -= MINSTEP;
+                if (r < 0) r = 0; 
+                imgdisplay(); break;
+
+            case 'yminus2':
+                if (!win2) return;
+                posy2 -= stepi;
+                if (posy2 < 0) posy2 = 0;
+                imgdisplay(); break;
+            case 'xminus2':
+                if (!win2) return;
+                posx2 -= stepi;
+                if (posx2 < 0) posx2 = 0;
+                imgdisplay(); break;
+            case 'xplus2':
+                if (!win2) return;
+                posx2 += stepi;
+                if (posx2 > idx/DPI - dx2) posx2 = idx/DPI - dx2; 
+                imgdisplay(); break;
+            case 'yplus2':
+                if (!win2) return;
+                posy2 += stepi;
+                if (posy2 > idy/DPI - dy2) posy2 = idy/DPI - dy2; 
+                imgdisplay(); break;
+            case 'hminus2':
+                if (!win2) return;
+                dy2 -= stepi;
+                if (dy2 < 2*r2) dy2 = 2*r2;
+                imgdisplay(); break;
+            case 'wminus2':
+                if (!win2) return;
+                dx2 -= stepi;
+                if (dx2 <= 2*r2) dx2 = 2*r2; 
+                imgdisplay(); break;
+            case 'wplus2':
+                if (!win2) return;
+                dx2 += stepi;
+                if (posx2 + dx2 > enWidth) dx2 = enWidth - posx2;
+                imgdisplay(); break;
+            case 'hplus2':
+                if (!win2) return;
+                dy2 += stepi; 
+                if (posy2 + dy2 > enHeight) dy2 = enHeight - posy2;
+                imgdisplay(); break;
+            case 'rplus2':
+                if (!win2) return;
+                r2 += MINSTEP;
+                if (r2*2 > dx2) r2 = dx2/2;
+                if (r2*2 > dy2) r2 = dy2/2;
+                imgdisplay(); break;
+            case 'rminus2':
+                if (!win2) return;
+                r2 -= MINSTEP;
+                if (r2 < 0) r2 = 0; 
+                imgdisplay(); break;
+        }
+    }
+}
+
+for (let i = 0; i < eButtons.length; i++) {
+    if (eButtons[i].getAttribute('bid') != null) {
+        eButtons[i].addEventListener('mousedown', keydown, false);
+        eButtons[i].addEventListener('mouseup', keyup, false);
+        eButtons[i].addEventListener('mouseout', keyup, false);
+    }
+}
+setInterval(processKeys, 10)
+
+function goStage(n) {
+    for (let i = 0; i < eTabLines.length; i++) {
+        let s = eTabLines[i].getAttribute('stage').split(' ');
+        eTabLines[i].style.display = (s.includes(n + '')) ? 'table-row' : 'none';
+    }
+}
+
+function loadImage(f) {
+    console.log(f, URL.createObjectURL(f));
+//    document.getElementById('i1').src = URL.createObjectURL(f);
+    eImg.onload = function() { 
+        oDX = cropDX = this.width; oDY = cropDY = this.height;
+        cropX1 = cropY1 = cropX2 = cropY2 = cropR = 0;
+        imgdisplay();
+        eCheckW1.disabled = false;
+        eCheckSnap.disabled = false;
+    };
+    eImg.src = URL.createObjectURL(f);
+}
+
+function switchW1() {
+    win1 = !win1;
+    eCheckW2.disabled = !win1;
+    if (win1 & snap) {
+        posx = doSnap(posx);
+        posy = doSnap(posy);
+        dx = doSnap(dx);
+        dy = doSnap(dy);
+    }
+    imgdisplay();    
+}
+
+function switchW2() {
+    win2 = !win2;
+    imgdisplay();    
+    if (win2 & snap) {
+        posx2 = doSnap(posx2);
+        posy2 = doSnap(posy2);
+        dx2 = doSnap(dx2);
+        dy2 = doSnap(dy2);
+    }
+}
+
+function switchSnap() {
+    snap = !snap;
+    if (snap) {
+        idx = doSnap(idx/DPI)*DPI; cropX2 = idx0 - idx - cropX1;
+        if (cropX2 < 0) {
+            cropX1 = DPI/16 + cropX2;
+            cropX2 = 0;
+        }
+        idy = doSnap(idy/DPI)*DPI; cropY2 = idy0 - idy - cropY1;
+        if (cropY2 < 0) {
+            cropY1 = DPI/16 + cropY2;
+            cropY2 = 0;
+        }
+        if (win1) {
+            posx = doSnap(posx);
+            posy = doSnap(posy);
+            dx = doSnap(dx);
+            dy = doSnap(dy);
+        }
+        if (win2) {
+        posx2 = doSnap(posx2);
+        posy2 = doSnap(posy2);
+        dx2 = doSnap(dx2);
+        dy2 = doSnap(dy2);
+        }
+    }
+    imgdisplay();    
+}
+
+function doSnap(n) {
+    return Math.round(n*16)/16;
+}
+
+function imgdisplay() {
+    let sin = Math.sin(cropR * Math.PI / 180);
+    let cos = Math.cos(cropR * Math.PI / 180);
+    idx0 = oDX * Math.abs(cos) + oDY * Math.abs(sin);
+    idy0 = oDX * Math.abs(sin) + oDY * Math.abs(cos);
+    idx = idx0 - cropX1 - cropX2;
+    idy = idy0 - cropY1 - cropY2;
+    if (snap) {
+        idx = doSnap(idx/DPI)*DPI; cropX2 = idx0 - idx - cropX1;
+        if (cropX2 < 0) {
+            cropX1 = DPI/16 + cropX2;
+            cropX2 = 0;
+        }
+        idy = doSnap(idy/DPI)*DPI; cropY2 = idy0 - idy - cropY1;
+        if (cropY2 < 0) {
+            cropY1 = DPI/16 + cropY2;
+            cropY2 = 0;
+        }
+    }
+    scale = WORK_WIDTH / idx;
+    eCrop.style.height = eEnvelopeSvg.style.height = (idy * scale) + 'px';
+    eImg.style.marginLeft = ((idx0/2 - cropX1)*scale - oDX/2) + 'px';
+    eImg.style.marginTop = ((idy0/2 - cropY1)*scale - oDY/2) + 'px';
+    eImg.style.transform = 'scale(' + scale + ') rotate(' + cropR + 'deg)';
+    enHeight = idy/DPI;
+    enWidth = idx/DPI;
+    eHeight.innerHTML = showIn(enHeight);
+    eWidth.innerHTML = showIn(enWidth);
+    let pxPerIn = scale * DPI;
+    let code = "";
+
+    if (win1) {
+        let v = idy * scale - 1, h = WORK_WIDTH - 1;
+        let x1 = posx*pxPerIn, y1 = posy*pxPerIn, w1 = dx*pxPerIn, h1 = dy*pxPerIn, rd1 = r*pxPerIn, rc1 = r*pxPerIn*RQ;
+        let path = 'M0.5 0.5 v' + v + ' h' + h + ' v-' + v + ' h-' + h +
+        ' M' + (x1 + rd1) + ' ' + y1 + ' h' + (w1 - 2*rd1) + ' c' + rc1 + ' 0,' + rd1 + ' ' + (rd1 - rc1) + ',' + rd1 + ' ' + rd1 +
+          ' v' + (h1 - 2*rd1) + ' c0 ' + rc1 + ',-' + (rd1 - rc1) + ' ' + rd1 + ',-' + rd1 + ' ' + rd1 +
+          ' h-' + (w1 - 2*rd1) + ' c-' + rc1 + ' 0,-' + rd1 + ' -' + (rd1 - rc1) + ',-' + rd1 + ' -' + rd1 +
+          ' v-' + (h1 - 2*rd1) + ' c0 -' + rc1 + ',' + (rd1 - rc1) + ' -' + rd1 + ',' + rd1 + ' -' + rd1;
+        eX1.innerHTML = showIn(posx);
+        eY1.innerHTML = showIn(posy);
+        eW1.innerHTML = showIn(dx);
+        eH1.innerHTML = showIn(dy);
+        eR1.innerHTML = showIn(r);
+        code = '[ "", ' + nice(enWidth) + ', ' + nice(enHeight) + ', ' + nice(posx) + ', ' + nice(posy) + ', ' + nice(dx) + ', ' + nice(dy) + ', ' + nice(r) + ', ';
+        if (win2) {
+            let x2 = posx2*pxPerIn, y2 = posy2*pxPerIn, w2 = dx2*pxPerIn, h2 = dy2*pxPerIn, rd2 = r2*pxPerIn, rc2 = r2*pxPerIn*RQ;
+            path += ' M' + (x2 + rd2) + ' ' + y2 + ' h' + (w2 - 2*rd2) + ' c' + rc2 + ' 0,' + rd2 + ' ' + (rd2 - rc2) + ',' + rd2 + ' ' + rd2 +
+                ' v' + (h2 - 2*rd2) + ' c0 ' + rc2 + ',-' + (rd2 - rc2) + ' ' + rd2 + ',-' + rd2 + ' ' + rd2 +
+                ' h-' + (w2 - 2*rd2) + ' c-' + rc2 + ' 0,-' + rd2 + ' -' + (rd2 - rc2) + ',-' + rd2 + ' -' + rd2 +
+                ' v-' + (h2 - 2*rd2) + ' c0 -' + rc2 + ',' + (rd2 - rc2) + ' -' + rd2 + ',' + rd2 + ' -' + rd2;
+            eX2.innerHTML = showIn(posx2);
+            eY2.innerHTML = showIn(posy2);
+            eW2.innerHTML = showIn(dx2);
+            eH2.innerHTML = showIn(dy2);
+            eR2.innerHTML = showIn(r2);
+            code += nice(posx2) + ', ' + nice(posy2) + ', ' + nice(dx2) + ', ' + nice(dy2) + ', ' + nice(r2) + ', ';
+        } else { 
+            eX2.innerHTML = eY2.innerHTML = eW2.innerHTML = eH2.innerHTML = eR2.innerHTML = '';
+            code += '-1, -1, -1, -1, -1, ';
+        }
+      eEnvelopePath.setAttribute('d', path);
+      code += '"" ]';
+    }
+    else eX1.innerHTML = eY1.innerHTML = eW1.innerHTML = eH1.innerHTML = eR1.innerHTML = '';
+    eCode.innerHTML = code;
+}
+
+function showIn(n) {
+    if (!snap) return n.toFixed(4) + '"';
+    let p1 = Math.floor(n);
+    let p2 = Math.round((n - p1)*16);
+    let p3 = 16;
+    if (p2 > 0)
+      while (p2%2 == 0) { p2 /= 2; p3 /= 2; }
+    if (p2 == 0) return p1 + '"';
+    if (p1 == 0) p1 = "";
+    return p1 + " " + p2 + "/" + p3 + '"';
+}
+
+function nice(n) {
+    return Math.round(n*10000)/10000;
+}
+
+</script>
+</body>
+</html>
