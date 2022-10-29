@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>TapTest 5</title>
+<script src="./pdf.js"></script> 
+<script src="./envelopes.js"></script>
+<link rel="stylesheet" href="tap.css">
+</head>
+<body>
+<div id="panel">
+  <p><button onclick="let input = document.createElement('input');
+    input.type = 'file'; input.accept = '.pdf';
+    input.onchange = _ => {
+        const filename_text = document.getElementById('fname');
+        filename_text.innerHTML = 'File: ' + input.files[0].name;
+        filename_text.style.width = PANEL_WIDTH - 10 + 'px';
+        openPDF(input.files[0]);
+    };
+    input.click();">Open PDF</button></p>
+    <div id="controls">
+        <p><span id="fname" ></span></br/>
+            Size: <span id="page_width"></span>" X <span id="page_height"></span>"</p>
+        <p>
+            <button id="button_prev" onclick="pageNum--;
+                queueRenderPage(pageNum);">
+                Previous</button>
+            <button id="button_next" onclick="pageNum++;
+                queueRenderPage(pageNum);">
+                Next</button>
+            &nbsp; Page <span id="page_num"></span> of <span id="page_count"></span>
+        </p>
+        <table style="margin-top:1em;">
+            <tr><td><label for="spec">Specification:</label>&nbsp;</td><td><select name="spec" id="specs_list" onchange="showSpec(this.selectedIndex);"></select></td></tr>
+            <tr><td><label for="envelope">Envelope #:</label></td><td><select name="envelope" id="envelope_list" onchange="showEnvelope(this.selectedIndex);"></select></td></tr>
+        </table>
+        <div class="desc">
+            <p id="envelope_desc"></p>
+        </div>
+        <div id="env_controls">
+            <p><button id="tap_left" disabled onclick="tap(true)">Tap Left</button>&nbsp;<button id="tap_right" disabled onclick="tap(false)">Tap Right</button></p>
+            <p><input type="checkbox" unchecked onchange="rulerOn = !rulerOn; showRuler()">&nbsp;Ruler</p>
+            <div id="ruler_controls">
+                <p><input type="checkbox" checked onchange="snap = !snap; updateCoords()">&nbsp;Snap to fractions<br/></p>
+            </div>
+            <p><input type="checkbox" onchange="toleranceOn =! toleranceOn; showTolerance()">&nbsp;Address window tolerance</p>
+            <p><input type="checkbox" onchange="slip =! slip; showE()">&nbsp;Detachable bottom part</p>
+            <p><button onclick="scanBarcode()">Scan Barcode</button></p>
+            <table><tr><td style="width:5em">Pages: <span id="pages_num">1</span></td>
+            <td><button id="pg_minus" disabled onclick="chgPages(-1);"> - </button>&nbsp;<button id="pg_plus" onclick="chgPages(1);"> + </button></td></tr></table>
+        </div>
+        <p><input type="checkbox" onchange="omrOn = !omrOn; showOMR()">&nbsp;OMR codes</p>
+        <div class="desc">
+            <p id="coords_desc"></p>
+        </div>
+        <table style="margin-top:8em;"><tr><td style="width:6em">Zoom: <span id="zoom">100</span>%</td>
+            <td><button id="zoom_minus" onclick="zum(-1)"> - </button>&nbsp;<button id="zoom_plus" onclick="zum(1)"> + </button></td></tr></table>
+        <p style="font-size:80%;margin-top:1em;">Screen resolution: <input id="sdpi" type="text" style="font-size:100%;width:1.5em;" maxlength="3"/></span>PPI</p>
+    </div>
+</div>
+<div id="page">
+    <div id="page_mv">
+        <canvas id="the-canvas"></canvas>
+        <svg id="svg_page">
+            <path id='fold-lines' fill='none' stroke-dasharray='12,24' stroke='magenta'/>
+            <g id="svg_omr"></g>
+        </svg>
+    </div>
+</div>
+<div id="envelope">
+    <svg id="envelope_svg">
+        <g id="svg_ruler"></g>
+        <path id="envelope_path" stroke='red' fill='none'/>
+        <path id="tolerance_path" stroke='red' stroke-dasharray='12,24' fill='none'/>
+        <g id="svg_ruler_x1"></g>
+        <g id="svg_ruler_x2"></g>
+        <g id="svg_ruler_y1"></g>
+        <g id="svg_ruler_y2"></g>
+        <g id="svg_ruler_diff"></g>
+    </svg>
+</div>
+
+<script src="./tap_ini.js"></script>
+<script src="./tap_envelope.js"></script>
+<script src="./tap_rulers.js"></script>
+<script src="./tap_tools.js"></script>
+<script src="./tap_pdf.js"></script>
+<script src="./tap_scan.js"></script>
+
+</body>
+</html>

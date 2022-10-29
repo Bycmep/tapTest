@@ -1,0 +1,87 @@
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 140%;
+    font-size: 10pt;
+}
+div {
+    transform-origin:top left;
+}
+div.desc {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    height: 50px;
+}
+div.desc p {
+    font-size: 8pt;
+    white-space: normal;
+    line-height: 9pt;
+}
+p {     
+    margin: 0 0 0.25em 0;
+}
+path {
+    stroke-width: 2.5;
+}
+text {
+    font-family: Courier, monospace;
+    font-size: 50px;
+    user-select: none;
+    text-anchor: middle;
+}
+text.left {
+    text-anchor: start;
+}
+text.small {
+    font-size: 30px;
+}
+
+#panel {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    width: 200px;
+    user-select: none;
+    padding: 10px;
+}
+#fname {
+    overflow: hidden;
+    white-space:nowrap;
+    text-overflow: ellipsis;
+    display: inline-block;
+}
+#the-canvas {
+    border: 1px solid black;
+    direction: ltr;
+  }
+#controls, #ruler_controls, #env_controls, #page {
+    display: none;
+}
+#page, #page_mv, #envelope, #page_tools, #page_tools_mv {
+    position: absolute;
+}
+table.t1 td {
+    width: 6em;
+    user-select: all;
+}
+path.handle {
+    fill: white;
+    stroke: black;
+    cursor: move;
+}
+path.line {
+    fill: none;
+    stroke: blue;
+}
+ellipse {
+    fill: white;
+    stroke: none;
+}
+  #svg_page {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  #svg_ruler_x1, #svg_ruler_x2, #svg_ruler_y1, #svg_ruler_y2 {
+    position: absolute;
+  }
