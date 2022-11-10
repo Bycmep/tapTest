@@ -50,6 +50,7 @@
             <td><button id="pg_minus" disabled onclick="chgPages(-1);"> - </button>&nbsp;<button id="pg_plus" onclick="chgPages(1);"> + </button></td></tr></table>
         </div>
         <p><input type="checkbox" onchange="omrOn = !omrOn; showOMR()">&nbsp;OMR codes</p>
+        <p><button onclick="checkMargins()">&nbsp;Check margins</button></p>
         <div class="desc">
             <p id="coords_desc"></p>
         </div>
@@ -64,6 +65,7 @@
         <svg id="svg_page">
             <path id='fold-lines' fill='none' stroke-dasharray='12,24' stroke='magenta'/>
             <g id="svg_omr"></g>
+            <g id="margincheck"></g>
         </svg>
     </div>
 </div>
@@ -79,12 +81,17 @@
         <g id="svg_ruler_diff"></g>
     </svg>
 </div>
+<div style="position: absolute; top: 100px; left: 600px; z-index: 100;">
+    <canvas id="myCanvas" width="0", height="0"></canvas>
+</div>
+
 
 <script src="./tap_ini.js"></script>
 <script src="./tap_envelope.js"></script>
 <script src="./tap_rulers.js"></script>
 <script src="./tap_tools.js"></script>
 <script src="./tap_pdf.js"></script>
+<script src="./usps-imb.js"></script>
 <script src="./tap_scan.js"></script>
 
 </body>

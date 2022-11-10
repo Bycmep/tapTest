@@ -32,6 +32,7 @@ const eZoomPlus = document.getElementById("zoom_plus");
 const eZoom = document.getElementById("zoom");
 const eDPIbox = document.getElementById("sdpi");
 const eOMR = document.getElementById("svg_omr");
+const eMarginCheck = document.getElementById("margincheck");
 
 
 const canvas = document.getElementById('the-canvas');

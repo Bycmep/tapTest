@@ -31,6 +31,7 @@ Notes:
     The format has some rules. Ask me if you get confused.
 
 Changelog:
+v4.1- Print margins check (3/16").
 v4. - The envelopes are based on specifications.
       One can select either the envelope by number, or the specification it uses.
       There are also non-standard envelopes in the list, and they have dimensions of their own.

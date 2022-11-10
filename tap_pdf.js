@@ -24,6 +24,7 @@ function renderPage(num) {
         canvas.width = viewport.width;
         svgPageWidth = eSvgPage.style.width = viewport.width + 2*PADDING;
         svgPageHeight = eSvgPage.style.height = viewport.height + 2*PADDING;
+        eMarginCheck.innerHTML =  '';
 
         if ((pageWidthOld != pageWidthIn || pageHeightOld != pageHeightIn) && edata != null) {
             showE();

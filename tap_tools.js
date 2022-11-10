@@ -51,3 +51,39 @@ function setDPI(n) {
     screenDPI = n; eDPIbox.value = screenDPI;
     zum(0);
 }
+
+const WHITELEVEL = 0.75;
+const MARGIN = 3/16;
+const M = Math.round(MARGIN*DPI);
+function checkMargins() {
+    if (eMarginCheck.innerHTML != '') { eMarginCheck.innerHTML =  ''; return; }
+    showEnvelope(0);
+    const dx = pageWidthIn*DPI, dy = pageHeightIn*DPI;
+    let raster = ctx.getImageData(0, 0, dx, dy);
+    mark = '<path fill="none" stroke="red" d="';
+    mark += checkArea(raster.data, 0, 0, dx, M);
+    mark += checkArea(raster.data, 0, dy - M, dx, dy);
+    mark += checkArea(raster.data, 0, M, M, dy - M);
+    mark += checkArea(raster.data, dx - M, M, dx, dy - M);
+    mark += '"/><path fill="none" stroke="green" d="M' + (M + PADDING) + ' ' + (M + PADDING) +
+        ' h' + (pageWidthIn*DPI - 2*M) + ' v' + (pageHeightIn*DPI - 2*M) +
+        ' h-' + (pageWidthIn*DPI - 2*M) + ' v-' + (pageHeightIn*DPI - 2*M) + '"/>';
+    eMarginCheck.innerHTML =  mark;
+}
+
+function checkArea(pixels, x0, y0, x1, y1) {
+    let out = '';
+    for (let j = y0; j < y1; j++) {
+        let p = Math.round((j*pageWidthIn*DPI + x0)*4);
+        let line = false, xs;
+        for (let i = x0; i < x1; i++) {
+            let light = (pixels[p]*77 + pixels[p + 1]*151 + pixels[p + 2]*28)/65536; p += 4;
+            if (light < WHITELEVEL && !line) { xs = i; line = true; }
+            if (line && (light >= WHITELEVEL || i == x1 - 1)) {
+                line = false;
+                out += ' M' + (xs + PADDING) + ' ' + (j + PADDING) + ' h' + (i - xs + 1);
+            }
+        }
+    }
+    return out;
+}

@@ -7,14 +7,16 @@ function showSpec(a) {
     else { 
         edata = deepCopy(specifications[a - 1]);
         eEnvelopeDesc.innerHTML = (edata.length > 2 && typeof edata[edata.length - 1] == 'string') ? edata[edata.length - 1] : '';
-//        checkMod();
     }
     showE();
 }
 
 function showEnvelope(a) {
     eSpecsList.value = ' ';
-    if (a == 0) edata = null;
+    if (a == 0) {
+        edata = null;
+        eEnvelopeList.value = ' ';
+    }
     else {
         edata = deepCopy(envelopes[a - 1]);
         eEnvelopeDesc.innerHTML = (edata.length > 2 && typeof edata[edata.length - 1] == 'string') ? edata[edata.length - 1] : '';
@@ -30,7 +32,6 @@ function showEnvelope(a) {
                 edata = deepCopy(specifications[i]);
             }
         }
-//        checkMod();
     }
     showE();
 }
@@ -51,6 +52,7 @@ function deepCopy(a) { // that was only needed for checkMod
 }
 
 function showE() {
+    eMarginCheck.innerHTML =  '';
     if (edata == null) {
       eEnvelopePath.setAttribute('d', "M0 0");
       ePageMv.style.left = ePageMv.style.top = '0px';
