@@ -1,18 +1,18 @@
-function canShow(raster, img) {
+function canStart(img) {
     let myCanvas = document.getElementById('myCanvas');
     let myCanvasX = myCanvas.getContext('2d');
     myCanvas.height = img.dy;
     myCanvas.width = img.dx;
-    let p1 = 0, p2 = 0;
+    let raster = ctx.getImageData(img.x, img.y, img.dx, img.dy);
+    let p = 0;
     for (let j = 0; j < img.dy; j++) {
         for (let i = 0; i < img.dx; i++) {
-            let c = Math.round(img.data[p2++]*255);
-            raster.data[p1++] = c; raster.data[p1++] = c; raster.data[p1++] = c; p1++;
+            let c = dotGrey(img, i, j)*255;
+            raster.data[p++] = c; raster.data[p++] = c; raster.data[p++] = c; p++;
         }
     }
     myCanvasX.putImageData(raster, 0, 0);
 }
-
 
 function scanBarcode() {
     let x = Math.round(edata[3]*DPI - parseFloat(ePageMv.style.left)), y = Math.round(edata[4]*DPI - parseFloat(ePageMv.style.top));
@@ -22,33 +22,43 @@ function scanBarcode() {
     if (x + dx > canvas.width) { dx = canvas.width - x; }
     if (y + dy > canvas.height) { dy = canvas.height - y; }
 
-//    let x = 1*DPI - parseInt(ePageMv.style.left), y = Math.round(3.21*DPI) - parseInt(ePageMv.style.top), dx = 3.2*DPI, dy = 0.04*DPI;
     let raster = ctx.getImageData(x, y, dx, dy);
     let pixels = raster.data;
 
-//    let myCanvas = document.getElementById('myCanvas');
-//    let myCanvasX = myCanvas.getContext('2d');
-//    myCanvas.height = dy;
-//    myCanvas.width = dx;
-//    myCanvasX.putImageData(raster, 0, 0);
-//    console.log(dx, dy);
-
-    let img = { data: Array(dx*dy), dx: dx, dy: dy };
+    let img = { data: Array(dx*dy), x: x, y: y, dx: dx, dy: dy };
     for (let i = 0, p = 0; i < dx*dy; i ++, p += 4)
         img.data[i] = (pixels[p]*77 + pixels[p + 1]*151 + pixels[p + 2]*28)/65536;
 
-//    let img1 = imgRotate(img, aa);
-//    console.log(img1);
-//    canShow(raster, img1);
-//    aa += 0.001;
+    let alpha = 0;
+    let result;
+    do {
+        result = tryRead(imgRotate(img, alpha));
+        if (alpha >= 0) { alpha = -alpha - 0.005; }
+        else { alpha = -alpha; }
+    } while ((result.fail || result.barcode.message == 'Invalid barcode') && alpha < 0.1);
+    if (result.fail) { alert('Reading barcode failed.'); return; }
+    console.log(result.barcode);
+}
 
-    
-
+function tryRead(img)
+{
+    canStart(img);
+    let result = { fail: true, barcode: 0 };
     let location = findLocation(img);
+    if (location.nlines < 30) return result;
+    let code = formCode(img, location);
+    for (let i = 0; i < code.length; i++) {
+        if (code[i] == 'X') return result;
+        if (i%2 == 0 && code[i] == ' ') return result;
+        if (i%2 == 1 && code[i] != ' ') return result;
+    }
+    result.fail = false;
+    result.barcode = decode_barcode(code);
+    return result;
 }
 
 function imgRotate(img, alpha) {
-    let img1 = { data: Array(img.dx*img.dy).fill(1), dx: img.dx, dy: img.dy };
+    let img1 = { data: Array(img.dx*img.dy).fill(1), x: img.x, y: img.y, dx: img.dx, dy: img.dy };
     for (let j = 0; j < img.dy; j++) {
         for (let i = 0; i < img.dx; i++) {
             let nx = img.dx/2 + (i - img.dx/2)*Math.cos(alpha) - (j - img.dy/2)*Math.sin(alpha);
@@ -68,117 +78,137 @@ function imgRotate(img, alpha) {
     return img1;
 }
 
+function dotBW(img, x, y) {
+    const THRESHOLD = 0.5;
+    if (x >= img.dx) return -1;
+    return (img.data[y*img.dx + x] >= THRESHOLD) ? 1 : 0;
+}
+
+function dotGrey(img, x, y) {
+    return img.data[y*img.dx + x];
+}
+
 function findLocation(img) {
     const TOLERANCE = 0.75;
-    let location = { x, y, dx, nlines, white, black };
-
-    for (let j = 0; j < dy; j ++) {
-        let i = 0;
-        while (img[j*dx + i] == 1 && i < dx) i++;
-        let prev = 0, seqX = i, seqLen = 1, l = 1;
-        let seqN = [0, 0], seqL = [-1, -1], seqS = [0, 0];
-        i++;
-        while (i <= dx) {
-            let pix = (i == dx) ? 1 - prev : img[j*dx + i];
-            if (pix == prev) l++;
+    let location = { x: 0, y: 0, dx: 0, nlines: 0, width: [ 0, 0 ] };
+    for (let j = 0; j < img.dy; j ++) {
+        let num = [ 0, 0 ], sum = [ 0, 0 ], len = [ -1, -1 ];
+        let prev = 1, l = 0;
+        for (let i = 0; i <= img.dx; i ++) {
+            let current = dotBW(img, i, j);
+            if (current == prev) l++;
             else {
-                if (l > 2 && l < dx/16 && (seqL[prev] == -1 ||
-                    (l > seqL[prev]*TOLERANCE && l < seqL[prev]/TOLERANCE))) {
-                    seqN[prev]++; seqS[prev] += l; seqL[prev] = seqS[prev]/seqN[prev]; seqLen++;
-                    if (prev == 0 && seqL[prev] == -1) seqX = i - l;
-                    if (seqLen > max && prev == 0) {
-                        max = seqLen; location.x = seqX; location.y = j; location.black = seqL[0]; location.white = seqL[1]; location.dx = seqS[0] + seqS[1];
+                if (len[prev] == -1) {
+                    if (prev == 0 || len[0] != -1) {
+                        num[prev] = 1; sum[prev] = l; len[prev] = l;
+                    }
+                } else {
+                    if (l*TOLERANCE <= len[prev] && l/TOLERANCE >= len[prev]) {
+                        num[prev] ++; sum[prev] += l; len[prev] = sum[prev]/num[prev];
+                    } else {
+                        if (location.nlines < num[0] && len[0] > 2) {
+                            location.x = i - l - sum[0] - sum[1]; location.y = j;
+                            location.dx = sum[0] + sum[1]; location.nlines = num[0];
+                            location.width[0] = len[0]; location.width[1] = len[1];
+                        }
+                        num[1] = 0; sum[1] = 0; len[1] = -1;
+                        num[0] = (prev == 0) ? 1 : 0;
+                        sum[0] = (prev == 0) ? l : 0;
+                        len[0] = (prev == 0) ? l : -1;
                     }
                 }
-                else {
-                    seqLen = (prev == 0) ? 1 : 0;
-                    seqL[0] = (prev == 0) ? l : -1;
-                    seqS[0] = (prev == 0) ? l : 0;
-                    seqN[0] = (prev == 0) ? 1 : 0;
-                    if (prev == 0) seqX = i - l;
-                }
-                l = 1; 
+                prev = current; l = 1;
             }
-            i++; prev = pix;
         }
     }
-
     return location;
 }
 
-function tryDecode() {
+function debugLine(img, x, y, dx, color) {
+    let a = [];
+    switch (color) {
+        case 'red': a[0] = 255; a[1] = 0; a[2] = 0; break;
+        case 'green': a[0] = 0; a[1] = 255; a[2] = 0; break;
+        case 'blue': a[0] = 0; a[1] = 0; a[2] = 255; break;
+    }
+    let myCanvas = document.getElementById('myCanvas');
+    let myCanvasX = myCanvas.getContext('2d');
+    let raster = myCanvasX.getImageData(x, y, dx, 1);
+    let p = 0;
+    for (let i = 0; i < dx; i++) {
+            raster.data[p++] = a[0];
+            raster.data[p++] = a[1];
+            raster.data[p++] = a[2];
+            p++;
+    }
+    myCanvasX.putImageData(raster, x, y);
 
-    const lineMatch = 0.95;
+
+//    document.getElementById('debug').innerHTML+='<path style="stroke-width:0.5;" fill="none" stroke="' + color + '" stroke-width="1" d="M' +
+//        (img.x + x + PADDING) + ' ' + (img.y + y + PADDING) + ' h' + dx + '"/>';
+}
+
+function formCode(img, location) {
+    const QMATCH = 0.95;
     let lineY1;
-    for (lineY1 = seqYMax; lineY1 > 0; lineY1--) {
+    for (lineY1 = location.y - 1; lineY1 >= 0; lineY1 --) {
         let match = 0;
-        for (let i = 0; i < seqSMax; i++) {
-            if (img[lineY1*dx + i] == img[(lineY1 - 1)*dx + i]) match++;
+        for (let i = location.x; i < location.x + location.dx; i ++) {
+            if (dotBW(img, i, lineY1) == dotBW(img, i, location.y)) match ++;
         }
-        if (match < lineMatch * seqSMax) break;
+        if (match < QMATCH * location.dx) break;
     }
     let lineY2;
-    for (lineY2 = seqYMax; lineY2 < dy - 1; lineY2++) {
+    for (lineY2 = location.y + 1; lineY2 < img.dy; lineY2 ++) {
         let match = 0;
-        for (let i = 0; i < seqSMax; i++) {
-            if (img[lineY2*dx + i] == img[(lineY2 + 1)*dx + i]) match++;
+        for (let i = location.x; i < location.x + location.dx; i ++) {
+            if (dotBW(img, i, lineY2) == dotBW(img, i, location.y)) match ++;
         }
-        if (match < lineMatch * seqSMax) break;
+        if (match < QMATCH * location.dx) break;
     }
     let lineY0;
-    for (lineY0 = lineY1; lineY0 >= 0; lineY0--) {
+    for (lineY0 = lineY1; lineY0 >= 0; lineY0 --) {
         let white = 0;
-        for (let i = 0; i < seqSMax; i++) {
-            if (img[lineY0*dx + i] == 1) white++;
+        for (let i = location.x; i < location.x + location.dx; i ++) {
+            if (dotBW(img, i, lineY0) == 1) white ++;
         }
-        if (white > lineMatch * seqSMax) { lineY0++; break; }
+        if (white > QMATCH * location.dx) { lineY0 ++; break; }
     }
     let lineY3;
-    for (lineY3 = lineY2; lineY3 < dy - 1; lineY3++) {
+    for (lineY3 = lineY2; lineY3 < img.dy - 1; lineY3 ++) {
         let white = 0;
-        for (let i = 0; i < seqSMax; i++) {
-            if (img[lineY3*dx + i] == 1) white++;
+        for (let i = location.x; i < location.x + location.dx; i ++) {
+            if (dotBW(img, i, lineY3) == 1) white ++;
         }
-        if (white > lineMatch * seqSMax) { lineY3--; break; }
+        if (white > QMATCH * location.dx) { lineY3 --; break; }
     }
+    debugLine(img, location.x, lineY0, location.dx, 'green');
+    debugLine(img, location.x, lineY1, location.dx, 'green');
+    debugLine(img, location.x, lineY2, location.dx, 'green');
+    debugLine(img, location.x, lineY3, location.dx, 'green');
+    if (lineY2 - lineY1 < 2) return 'X';
+    if (lineY3 - lineY0 < 8) return 'X';
+    if (lineY1 - lineY0 < (lineY3 - lineY0 + 1)/5) lineY1 = Math.round(lineY0 + (lineY3 - lineY0 + 1)/3);
+    if (lineY3 - lineY2 < (lineY3 - lineY0 + 1)/5) lineY2 = Math.round(lineY3 - (lineY3 - lineY0 + 1)/3);
 
-    seqLenMax--;
-    let value = Array(3*seqLenMax).fill(0), total = Array(3*seqLenMax).fill(0);
-    for (let j = lineY0; j <= lineY3; j++ ) {
+    let value = Array(location.nlines*6).fill(0), total = Array(location.nlines*6).fill(0);
+    for (let j = lineY0; j <= lineY3; j ++ ) {
         let line = (j < lineY1) ? 0 : ((j > lineY2) ? 2 : 1);
-        let c = 0, l = 0, p = 0;
-        for (let i = seqXMax; i <= seqXMax + seqSMax; i++ ) {
-            value[p + line] += img[j*dx + i];
-            total[p + line]++;
-            l++;
-            if(l >= seqLMax[c]) {
-                l -= seqLMax[c]; c = 1 - c; p += 3;
+        let seg = 0, color = 0, l = 0.5;
+        for (let i = location.x; i < location.x + location.dx; i ++) {
+            value[seg + line] += dotGrey(img, i, j);
+            total[seg + line] ++;
+            l ++;
+            if(l >= location.width[color]) {
+                l -= location.width[color]; color = 1 - color; seg += 3;
             }
         }
-    }
-    for (let j = 0; j < 3; j++) {
-        let s = '';
-        for (let i = 0; i < seqLenMax; i++) {
-            value[i*3 + j] = (value[i*3 + j] < total[i*3 + j]/2) ? 1 : 0;
-            s += (value[i*3 + j] == 1) ? '#' : ' ';
-        }
-        console.log(s);
     }
 
     let s = '';
     const codes = [ ' ', 'X', 'S', 'A', 'X', 'X', 'D', 'F' ];
-    for (let i = 0; i < seqLenMax*3; i+=6) {
-        s += codes [value[i] + value[i+1]*2 + value[i+2]*4];
+    for (let i = 0; i < location.nlines*6; i += 3) {
+        s += codes[value[i] + value[i + 1]*2 + value[i + 2]*4];
     }
-    console.log(s);
-    console.log(decode_barcode(s));
-
-//    let ht = lineY2 - lineY1 + 1;
-//    let value = Array(3*seqLenMax).fill(0), total = Array(3*seqLenMax).fill(0);
-    let ymin = lineY0; let ymax = lineY3;
-    let xmin = seqXMax, xmax = xmin + seqSMax;
-    document.getElementById("test").innerHTML = "<path stroke='lightgreen' fill='none' d='M" + 
-        (x + xmin - 1 + PADDING) + " " + (y + ymin - 1 + PADDING) + " h" + (xmax - xmin + 2) + " v" + (ymax - ymin + 2) + " h-" + (xmax - xmin + 2) + " v-" + (ymax - ymin + 2) + "'/>";
-
+    return s;
 }
-
