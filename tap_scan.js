@@ -1,48 +1,61 @@
-function canStart(img) {
-    let myCanvas = document.getElementById('myCanvas');
-    let myCanvasX = myCanvas.getContext('2d');
-    myCanvas.height = img.dy;
-    myCanvas.width = img.dx;
-    let raster = ctx.getImageData(img.x, img.y, img.dx, img.dy);
-    let p = 0;
-    for (let j = 0; j < img.dy; j++) {
-        for (let i = 0; i < img.dx; i++) {
-            let c = dotGrey(img, i, j)*255;
-            raster.data[p++] = c; raster.data[p++] = c; raster.data[p++] = c; p++;
-        }
-    }
-    myCanvasX.putImageData(raster, 0, 0);
-}
-
 function scanBarcode() {
-    let x = Math.round(edata[3]*DPI - parseFloat(ePageMv.style.left)), y = Math.round(edata[4]*DPI - parseFloat(ePageMv.style.top));
-    let dx = Math.round(edata[5]*DPI), dy = Math.round(edata[6]*DPI);
-    if (x < 0) { dx += x; x = 0; }
-    if (y < 0) { dy += y; y = 0; }
-    if (x + dx > canvas.width) { dx = canvas.width - x; }
-    if (y + dy > canvas.height) { dy = canvas.height - y; }
 
-    let raster = ctx.getImageData(x, y, dx, dy);
-    let pixels = raster.data;
+    function showPopup() {
+            document.getElementById('bar_status').style.display = 'block';
+            document.getElementById('bar_status').innerHTML = 'Searching for barcode...';
+            document.getElementById('bar_breakdown').style.display = 'none';
+            document.getElementById('bar_dismiss').style.display = 'none';
+            document.getElementById('barcode').style.display = 'block';
 
-    let img = { data: Array(dx*dy), x: x, y: y, dx: dx, dy: dy };
-    for (let i = 0, p = 0; i < dx*dy; i ++, p += 4)
-        img.data[i] = (pixels[p]*77 + pixels[p + 1]*151 + pixels[p + 2]*28)/65536;
+    }
 
-    let alpha = 0;
-    let result;
-    do {
-        result = tryRead(imgRotate(img, alpha));
-        if (alpha >= 0) { alpha = -alpha - 0.005; }
-        else { alpha = -alpha; }
-    } while ((result.fail || result.barcode.message == 'Invalid barcode') && alpha < 0.1);
-    if (result.fail) { alert('Reading barcode failed.'); return; }
-    console.log(result.barcode);
+    function scanBarcode_() {
+        let x = Math.round(edata[3]*DPI - parseFloat(ePageMv.style.left)), y = Math.round(edata[4]*DPI - parseFloat(ePageMv.style.top));
+        let dx = Math.round(edata[5]*DPI), dy = Math.round(edata[6]*DPI);
+        if (x < 0) { dx += x; x = 0; }
+        if (y < 0) { dy += y; y = 0; }
+        if (x + dx > canvas.width) { dx = canvas.width - x; }
+        if (y + dy > canvas.height) { dy = canvas.height - y; }
+
+        let raster = ctx.getImageData(x, y, dx, dy);
+        let pixels = raster.data;
+
+        let img = { data: Array(dx*dy), x: x, y: y, dx: dx, dy: dy };
+        for (let i = 0, p = 0; i < dx*dy; i ++, p += 4)
+            img.data[i] = (pixels[p]*77 + pixels[p + 1]*151 + pixels[p + 2]*28)/65536;
+
+        let alpha = 0;
+        let result;
+        do {
+            result = tryRead(imgRotate(img, alpha));
+            if (alpha >= 0) { alpha = -alpha - 0.005; }
+            else { alpha = -alpha; }
+        } while ((result.fail || result.barcode.message == 'Invalid barcode.') && alpha < 0.1);
+        if (result.fail) { 
+            document.getElementById('bar_status').innerHTML = 'Failed to read IMB barcode.';
+        } else {
+            document.getElementById('bar_status').style.display = 'none';
+            document.getElementById('bar_breakdown').style.display = 'block';
+            document.getElementById('b_barcodeid').innerHTML = result.barcode.barcode_id;
+            document.getElementById('b_servtypeid').innerHTML = result.barcode.service_type;
+            document.getElementById('b_mailerid').innerHTML = result.barcode.mailer_id;
+            document.getElementById('b_snumber').innerHTML = result.barcode.serial_num;
+            document.getElementById('b_zip').innerHTML = result.barcode.zip;
+            document.getElementById('b_zip4').innerHTML = result.barcode.plus4;
+            document.getElementById('b_dp').innerHTML = result.barcode.delivery_pt;
+            if (typeof result.barcode.message !== 'undefined') {
+                document.getElementById('bar_info').innerHTML = result.barcode.message;
+            }
+        }
+        document.getElementById('bar_dismiss').style.display = 'block';
+    }
+    setTimeout(showPopup, 0);
+    setTimeout(scanBarcode_, 100);
+
 }
 
 function tryRead(img)
 {
-    canStart(img);
     let result = { fail: true, barcode: 0 };
     let location = findLocation(img);
     if (location.nlines < 30) return result;
@@ -124,30 +137,6 @@ function findLocation(img) {
     return location;
 }
 
-function debugLine(img, x, y, dx, color) {
-    let a = [];
-    switch (color) {
-        case 'red': a[0] = 255; a[1] = 0; a[2] = 0; break;
-        case 'green': a[0] = 0; a[1] = 255; a[2] = 0; break;
-        case 'blue': a[0] = 0; a[1] = 0; a[2] = 255; break;
-    }
-    let myCanvas = document.getElementById('myCanvas');
-    let myCanvasX = myCanvas.getContext('2d');
-    let raster = myCanvasX.getImageData(x, y, dx, 1);
-    let p = 0;
-    for (let i = 0; i < dx; i++) {
-            raster.data[p++] = a[0];
-            raster.data[p++] = a[1];
-            raster.data[p++] = a[2];
-            p++;
-    }
-    myCanvasX.putImageData(raster, x, y);
-
-
-//    document.getElementById('debug').innerHTML+='<path style="stroke-width:0.5;" fill="none" stroke="' + color + '" stroke-width="1" d="M' +
-//        (img.x + x + PADDING) + ' ' + (img.y + y + PADDING) + ' h' + dx + '"/>';
-}
-
 function formCode(img, location) {
     const QMATCH = 0.95;
     let lineY1;
@@ -182,10 +171,7 @@ function formCode(img, location) {
         }
         if (white > QMATCH * location.dx) { lineY3 --; break; }
     }
-    debugLine(img, location.x, lineY0, location.dx, 'green');
-    debugLine(img, location.x, lineY1, location.dx, 'green');
-    debugLine(img, location.x, lineY2, location.dx, 'green');
-    debugLine(img, location.x, lineY3, location.dx, 'green');
+
     if (lineY2 - lineY1 < 2) return 'X';
     if (lineY3 - lineY0 < 8) return 'X';
     if (lineY1 - lineY0 < (lineY3 - lineY0 + 1)/5) lineY1 = Math.round(lineY0 + (lineY3 - lineY0 + 1)/3);
@@ -205,9 +191,12 @@ function formCode(img, location) {
         }
     }
 
+    for (let i = 0; i < location.nlines*6 - 3; i ++)
+        value[i] = (value[i] < total[i]/2) ? 1 : 0;
+
     let s = '';
     const codes = [ ' ', 'X', 'S', 'A', 'X', 'X', 'D', 'F' ];
-    for (let i = 0; i < location.nlines*6; i += 3) {
+    for (let i = 0; i < location.nlines*6 - 3; i += 3) {
         s += codes[value[i] + value[i + 1]*2 + value[i + 2]*4];
     }
     return s;

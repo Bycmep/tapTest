@@ -272,12 +272,12 @@ function try_repair(possible, chars, pos) {
       newinf = decode_chars(chars);
       if (newinf) {
         newinf.suggest = chars_to_text(chars);
-        newinf.message = "Damaged barcode";
+        newinf.message = "Damaged barcode.";
       }
     }
     if (newinf) {
       // abort if multiple solutions are found.
-      if (inf) return { message: "Invalid barcode" }
+      if (inf) return { message: "Invalid barcode." }
       inf = newinf;
     }
   }
@@ -382,7 +382,7 @@ function decode_barcode(barcode) {
 
   barcode = repair_barcode(barcode);
   if (barcode.length != 65)
-    return { message: "Barcode must be 65 characters long" };
+    return { message: "Barcode must be 65 characters long." };
 
   chars = text_to_chars(barcode, false);
   inf = repair_chars(chars);
@@ -396,11 +396,11 @@ function decode_barcode(barcode) {
   chars = text_to_chars(barcode, false);
   inf = repair_chars(chars);
   if (inf && inf.barcode_id) {
-    inf.message = "Barcode seems to be upside down";
+    inf.message = "Barcode seems to be upside down.";
     return inf;
   }
 
-  return { message: "Invalid barcode" };
+  return { message: "Invalid barcode." };
 }
 
 function check_fields(inf) {

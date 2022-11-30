@@ -31,6 +31,9 @@ Notes:
     The format has some rules. Ask me if you get confused.
 
 Changelog:
+v5. - Reading IMB barcode.
+      "Scan barcode" button appears after an envelope is selected: the app will try to find a barcode in the
+      address window.
 v4.1- Print margins check (3/16").
 v4. - The envelopes are based on specifications.
       One can select either the envelope by number, or the specification it uses.

@@ -77,11 +77,45 @@ ellipse {
     fill: white;
     stroke: none;
 }
-  #svg_page {
+#svg_page {
     position: absolute;
     top: 0;
     left: 0;
-  }
-  #svg_ruler_x1, #svg_ruler_x2, #svg_ruler_y1, #svg_ruler_y2 {
+}
+#svg_ruler_x1, #svg_ruler_x2, #svg_ruler_y1, #svg_ruler_y2 {
     position: absolute;
-  }
+}
+div#barcode {
+    width: 16em;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    margin-top: -12em;
+    margin-left: -8em;
+    border: 1px solid black;
+    background-color: whitesmoke;
+    padding: 1em;
+    display: none;
+    z-index: 100;
+}
+#bar_dismiss {
+    text-align: center;
+    margin-top: 0.7em;
+}
+#barcode table {
+    width: 100%;
+}
+#b_barcodeid, #b_servtypeid, #b_mailerid, #b_snumber, #b_zip, #b_zip4, #b_dp {
+    border: 1px solid black;
+    background-color: white;
+    text-align: right;
+    padding-left: 1em;
+}
+#bar_status {
+    text-align: center;
+}
+#bar_info {
+    margin-top: 0.7em;
+    color: darkred;
+    font-size: 85%;
+}
